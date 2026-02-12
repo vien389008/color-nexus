@@ -1,16 +1,24 @@
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Switch, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useI18n } from "../src/i18n/I18nContext";
 import { styles } from "../src/styles/settings.styles";
+import {
+  isSoundEnabled,
+  setSoundEnabled as setSoundSystem,
+} from "../src/utils/sound";
 
 export default function Settings() {
   const router = useRouter();
   const { t, language, setLanguage } = useI18n();
 
   const [soundEnabled, setSoundEnabled] = useState(true);
+
+  useEffect(() => {
+    setSoundEnabled(isSoundEnabled());
+  }, []);
 
   return (
     <LinearGradient
@@ -23,7 +31,13 @@ export default function Settings() {
 
           <LinearGradient colors={["#6a00f4", "#a64dff"]} style={styles.item}>
             <Text style={styles.itemText}>{t.settings.sound}</Text>
-            <Switch value={soundEnabled} onValueChange={setSoundEnabled} />
+            <Switch
+              value={soundEnabled}
+              onValueChange={(value) => {
+                setSoundEnabled(value);
+                setSoundSystem(value);
+              }}
+            />
           </LinearGradient>
 
           <TouchableOpacity onPress={() => router.push("/info")}>

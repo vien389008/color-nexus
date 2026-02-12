@@ -1,27 +1,14 @@
-import React, { createContext, useContext, useState } from "react";
+import { useEffect } from "react";
+import { loadSounds, unloadSounds } from "../utils/sound";
 
-type SoundContextType = {
-  soundEnabled: boolean;
-  toggleSound: (value: boolean) => void;
-};
+export function SoundProvider({ children }: any) {
+  useEffect(() => {
+    loadSounds();
 
-const SoundContext = createContext<SoundContextType>({
-  soundEnabled: true,
-  toggleSound: () => {},
-});
+    return () => {
+      unloadSounds();
+    };
+  }, []);
 
-export const SoundProvider = ({ children }: any) => {
-  const [soundEnabled, setSoundEnabled] = useState(true);
-
-  const toggleSound = (value: boolean) => {
-    setSoundEnabled(value);
-  };
-
-  return (
-    <SoundContext.Provider value={{ soundEnabled, toggleSound }}>
-      {children}
-    </SoundContext.Provider>
-  );
-};
-
-export const useSound = () => useContext(SoundContext);
+  return children;
+}

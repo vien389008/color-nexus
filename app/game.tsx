@@ -13,10 +13,15 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Grid from "../src/components/Grid";
+import { useI18n } from "../src/i18n/I18nContext";
 import { levels } from "../src/levels/levels";
 import { styles } from "../src/styles/game.styles";
+
+const TOTAL_TIME = 30000;
+
 export default function Game() {
   const router = useRouter();
+  const { t } = useI18n();
 
   const [currentLevelIndex, setCurrentLevelIndex] = useState(0);
   const [score, setScore] = useState(0);
@@ -29,11 +34,12 @@ export default function Game() {
   const isPaused = modalType !== null;
 
   const progressAnim = useRef(new Animated.Value(1)).current;
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const remainingTimeRef = useRef(TOTAL_TIME);
 
   const currentLevel = levels[currentLevelIndex];
 
-  // ================= LOAD HIGH SCORE =================
+  /* LOAD HIGH SCORE */
+
   useEffect(() => {
     const loadHighScore = async () => {
       const saved = await AsyncStorage.getItem("HIGH_SCORE");
@@ -42,22 +48,19 @@ export default function Game() {
     loadHighScore();
   }, []);
 
-  // ================= TIMER + PROGRESS =================
+  /* TIMER */
+
   useEffect(() => {
     if (isPaused) {
-      progressAnim.stopAnimation();
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-        timerRef.current = null;
-      }
+      progressAnim.stopAnimation((value) => {
+        remainingTimeRef.current = value * TOTAL_TIME;
+      });
       return;
     }
 
-    progressAnim.setValue(1);
-
     Animated.timing(progressAnim, {
       toValue: 0,
-      duration: 15000,
+      duration: remainingTimeRef.current,
       easing: Easing.linear,
       useNativeDriver: false,
     }).start(({ finished }) => {
@@ -66,11 +69,16 @@ export default function Game() {
 
     return () => {
       progressAnim.stopAnimation();
-      if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [currentLevelIndex, isPaused]);
+  }, [isPaused, currentLevelIndex]);
 
-  // ================= WIN =================
+  const resetTimer = () => {
+    progressAnim.setValue(1);
+    remainingTimeRef.current = TOTAL_TIME;
+  };
+
+  /* WIN */
+
   const handleWin = async () => {
     const newScore = score + 1;
     setScore(newScore);
@@ -81,44 +89,53 @@ export default function Game() {
     }
 
     if (currentLevelIndex < levels.length - 1) {
+      resetTimer();
       setCurrentLevelIndex((prev) => prev + 1);
     } else {
-      Alert.alert("Hoàn thành!", "Bạn đã thắng tất cả màn!");
+      Alert.alert(t.game.completedTitle, t.game.completedMessage);
     }
   };
 
-  // ================= GAME OVER =================
+  /* GAME OVER */
+
   const handleGameOver = () => {
-    Alert.alert("Hết giờ!", "Bạn thua rồi 😢", [
+    Alert.alert(t.game.timeUpTitle, t.game.timeUpMessage, [
       {
-        text: "Chơi lại",
+        text: t.game.playAgain,
         onPress: () => {
           setScore(0);
           setCurrentLevelIndex(0);
           setGridResetKey((prev) => prev + 1);
+          resetTimer();
         },
       },
     ]);
   };
 
-  // ================= RESET LEVEL =================
+  /* RESET */
+
   const confirmReset = () => {
     setModalType(null);
+    setScore(0);
+    setCurrentLevelIndex(0);
     setGridResetKey((prev) => prev + 1);
+    resetTimer();
   };
 
-  // ================= GO HOME =================
+  /* HOME */
+
   const goHome = () => {
     setModalType(null);
     setScore(0);
     setCurrentLevelIndex(0);
     setGridResetKey(0);
+    resetTimer();
     router.replace("/");
   };
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* ===== PROGRESS TIMER BAR ===== */}
+      {/* TIMER */}
       <View style={styles.timerWrapper}>
         <View style={styles.clockIcon}>
           <MaterialIcons name="schedule" size={20} color="#000" />
@@ -138,16 +155,22 @@ export default function Game() {
           />
         </View>
 
-        <Text style={styles.roundText}>VÒNG: {currentLevelIndex + 1}</Text>
+        <Text style={styles.roundText}>
+          {t.game.round}: {currentLevelIndex + 1}
+        </Text>
       </View>
 
-      {/* ===== SCORE ===== */}
+      {/* SCORE */}
       <View style={styles.scoreBar}>
-        <Text style={styles.hudText}>Score: {score}</Text>
-        <Text style={styles.hudText}>High: {highScore}</Text>
+        <Text style={styles.hudText}>
+          {t.game.score}: {score}
+        </Text>
+        <Text style={styles.hudText}>
+          {t.game.high}: {highScore}
+        </Text>
       </View>
 
-      {/* ===== GRID ===== */}
+      {/* GRID */}
       <View style={styles.gridWrapper}>
         <Grid
           key={`${currentLevelIndex}-${gridResetKey}`}
@@ -156,65 +179,63 @@ export default function Game() {
         />
       </View>
 
-      {/* ===== BOTTOM BUTTONS ===== */}
+      {/* BUTTONS */}
       <View style={styles.bottomBar}>
         <TouchableOpacity
           style={styles.button}
           onPress={() => setModalType("pause")}
         >
-          <Text style={styles.buttonText}>Pause</Text>
+          <Text style={styles.buttonText}>{t.game.pause}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
           style={[styles.button, styles.resetButton]}
           onPress={() => setModalType("confirmReset")}
         >
-          <Text style={styles.buttonText}>Reset</Text>
+          <Text style={styles.buttonText}>{t.game.reset}</Text>
         </TouchableOpacity>
       </View>
 
-      {/* ===== MODAL ===== */}
+      {/* MODAL */}
       <Modal visible={modalType !== null} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={styles.modalBox}>
             {modalType === "pause" && (
               <>
-                <Text style={styles.modalTitle}>Game Paused</Text>
+                <Text style={styles.modalTitle}>{t.game.paused}</Text>
 
                 <TouchableOpacity
                   style={styles.modalButton}
                   onPress={() => setModalType(null)}
                 >
-                  <Text style={styles.modalButtonText}>Continue</Text>
+                  <Text style={styles.modalButtonText}>{t.game.continue}</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
                   style={[styles.modalButton, styles.homeButton]}
                   onPress={goHome}
                 >
-                  <Text style={styles.modalButtonText}>Home</Text>
+                  <Text style={styles.modalButtonText}>{t.game.home}</Text>
                 </TouchableOpacity>
               </>
             )}
 
             {modalType === "confirmReset" && (
               <>
-                <Text style={styles.modalTitle}>
-                  Bạn có chắc chắn muốn chơi lại không?
-                </Text>
+                <Text style={styles.modalTitle}>{t.game.confirmReset}</Text>
 
                 <TouchableOpacity
                   style={styles.modalButton}
                   onPress={confirmReset}
                 >
-                  <Text style={styles.modalButtonText}>Có</Text>
+                  <Text style={styles.modalButtonText}>{t.game.yes}</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
                   style={[styles.modalButton, styles.homeButton]}
                   onPress={() => setModalType(null)}
                 >
-                  <Text style={styles.modalButtonText}>Không</Text>
+                  <Text style={styles.modalButtonText}>{t.game.no}</Text>
                 </TouchableOpacity>
               </>
             )}

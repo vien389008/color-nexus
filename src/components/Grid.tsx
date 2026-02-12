@@ -12,18 +12,19 @@ type Props = {
 
 const screenWidth = Dimensions.get("window").width;
 
-export default function Grid({ levelData, onWin, onLose }: Props) {
+export default function Grid({ levelData, onWin }: Props) {
   const { size, endpoints, blocked = [], connectors = [] } = levelData;
 
-  const gridSize = screenWidth * 0.9;
-  const cellSize = gridSize / size;
-  const pipeWidth = cellSize * 0.45;
+  const rawGridSize = screenWidth * 0.9;
+  const cellSize = Math.floor(rawGridSize / size);
+  const gridSize = cellSize * size;
+
+  const pipeWidth = cellSize * 0.5;
   const totalCells = size * size;
   const playableCells = totalCells - blocked.length - connectors.length;
 
-  // =============================
-  // GRID DATA
-  // =============================
+  /* ================= GRID DATA ================= */
+
   const gridData = useMemo(() => {
     const data = Array.from({ length: totalCells }, (_, i) => ({
       id: i,
@@ -47,15 +48,33 @@ export default function Grid({ levelData, onWin, onLose }: Props) {
     { color: string; cells: number[] }[]
   >([]);
 
+  const [lastTap, setLastTap] = useState<{
+    index: number;
+    color: string;
+    time: number;
+  } | null>(null);
+
   useEffect(() => {
     setActiveColor(null);
     setCurrentPath([]);
     setLockedPaths([]);
+    setLastTap(null);
   }, [levelData]);
 
-  // =============================
-  // HELPERS
-  // =============================
+  /* ================= OPTIMIZE LOOKUP ================= */
+
+  const lockedMap = useMemo(() => {
+    const map = new Map<number, string>();
+    lockedPaths.forEach((p) => {
+      p.cells.forEach((c) => {
+        map.set(c, p.color);
+      });
+    });
+    return map;
+  }, [lockedPaths]);
+
+  /* ================= HELPERS ================= */
+
   const getCellFromTouch = (x: number, y: number) => {
     const col = Math.floor(x / cellSize);
     const row = Math.floor(y / cellSize);
@@ -75,21 +94,35 @@ export default function Grid({ levelData, onWin, onLose }: Props) {
     );
   };
 
+  const isOtherEndpoint = (index: number) => {
+    const cell = gridData[index];
+    return (
+      cell.color === activeColor &&
+      currentPath.length > 0 &&
+      index !== currentPath[0]
+    );
+  };
+
   const isCellOccupied = (id: number) => {
-    const cell = gridData[id];
-    if (cell.connector) return false;
-    return lockedPaths.some((p) => p.cells.includes(id));
+    if (gridData[id].connector) return false;
+
+    const occupiedColor = lockedMap.get(id);
+
+    if (occupiedColor && occupiedColor !== activeColor) {
+      setLockedPaths((prev) => prev.filter((p) => p.color !== occupiedColor));
+      return false;
+    }
+
+    return occupiedColor !== undefined;
   };
 
   const getCellColor = (id: number) => {
     if (currentPath.includes(id) && activeColor) return activeColor;
-    const locked = lockedPaths.find((p) => p.cells.includes(id));
-    return locked ? locked.color : "transparent";
+    return lockedMap.get(id) ?? "transparent";
   };
 
-  // =============================
-  // GESTURE
-  // =============================
+  /* ================= GESTURE ================= */
+
   const handleGesture = (event: any) => {
     const { x, y } = event.nativeEvent;
     const index = getCellFromTouch(x, y);
@@ -100,7 +133,28 @@ export default function Grid({ levelData, onWin, onLose }: Props) {
 
     if (!activeColor) {
       if (cell.color) {
+        const now = Date.now();
+
+        // Double tap -> delete path
+        if (
+          lastTap &&
+          lastTap.index === index &&
+          lastTap.color === cell.color &&
+          now - lastTap.time < 300
+        ) {
+          setLockedPaths((prev) => prev.filter((p) => p.color !== cell.color));
+          setLastTap(null);
+          return;
+        }
+
+        setLastTap({
+          index,
+          color: cell.color,
+          time: now,
+        });
+
         setLockedPaths((prev) => prev.filter((p) => p.color !== cell.color));
+
         setActiveColor(cell.color);
         setCurrentPath([index]);
         playSwipe();
@@ -109,6 +163,13 @@ export default function Grid({ levelData, onWin, onLose }: Props) {
     }
 
     const last = currentPath[currentPath.length - 1];
+    const secondLast =
+      currentPath.length > 1 ? currentPath[currentPath.length - 2] : null;
+
+    if (index === secondLast) {
+      setCurrentPath((prev) => prev.slice(0, -1));
+      return;
+    }
 
     if (
       !currentPath.includes(index) &&
@@ -116,7 +177,14 @@ export default function Grid({ levelData, onWin, onLose }: Props) {
       !isCellOccupied(index) &&
       (!cell.color || cell.color === activeColor)
     ) {
-      setCurrentPath([...currentPath, index]);
+      // Nếu chạm endpoint còn lại -> thêm rồi dừng
+      if (isOtherEndpoint(index)) {
+        setCurrentPath((prev) => [...prev, index]);
+        playSwipe();
+        return;
+      }
+
+      setCurrentPath((prev) => [...prev, index]);
       playSwipe();
     }
   };
@@ -154,12 +222,43 @@ export default function Grid({ levelData, onWin, onLose }: Props) {
     setActiveColor(null);
   };
 
-  // =============================
-  // RENDER
-  // =============================
+  /* ================= RENDER ================= */
+
   return (
     <PanGestureHandler onGestureEvent={handleGesture} onEnded={handleEnd}>
       <View style={[styles.grid, { width: gridSize, height: gridSize }]}>
+        {Array.from({ length: size + 1 }).map((_, i) => (
+          <View
+            key={"h-" + i}
+            pointerEvents="none"
+            style={{
+              position: "absolute",
+              top: i * cellSize,
+              left: 0,
+              width: gridSize,
+              height: 1,
+              backgroundColor: "#333",
+              zIndex: 1,
+            }}
+          />
+        ))}
+
+        {Array.from({ length: size + 1 }).map((_, i) => (
+          <View
+            key={"v-" + i}
+            pointerEvents="none"
+            style={{
+              position: "absolute",
+              left: i * cellSize,
+              top: 0,
+              height: gridSize,
+              width: 1,
+              backgroundColor: "#333",
+              zIndex: -1,
+            }}
+          />
+        ))}
+
         {gridData.map((cell) => {
           const color = getCellColor(cell.id);
 
@@ -167,7 +266,7 @@ export default function Grid({ levelData, onWin, onLose }: Props) {
 
           if (currentPath.includes(cell.id)) {
             pathCells = currentPath;
-          } else {
+          } else if (lockedMap.has(cell.id)) {
             const locked = lockedPaths.find((p) => p.cells.includes(cell.id));
             if (locked) pathCells = locked.cells;
           }
@@ -193,7 +292,7 @@ export default function Grid({ levelData, onWin, onLose }: Props) {
                 {
                   width: cellSize,
                   height: cellSize,
-                  backgroundColor: cell.blocked ? "#b0b0b0" : "transparent",
+                  backgroundColor: cell.blocked ? "#643232" : "transparent",
                 },
               ]}
             >
@@ -206,7 +305,7 @@ export default function Grid({ levelData, onWin, onLose }: Props) {
                       height: pipeWidth,
                       borderRadius: pipeWidth / 2,
                       backgroundColor: color,
-                      zIndex: 5,
+                      zIndex: 10,
                     }}
                   />
 
@@ -218,6 +317,7 @@ export default function Grid({ levelData, onWin, onLose }: Props) {
                         height: cellSize / 2,
                         backgroundColor: color,
                         top: 0,
+                        zIndex: 9,
                       }}
                     />
                   )}
@@ -230,6 +330,7 @@ export default function Grid({ levelData, onWin, onLose }: Props) {
                         height: cellSize / 2,
                         backgroundColor: color,
                         bottom: 0,
+                        zIndex: 9,
                       }}
                     />
                   )}
@@ -242,6 +343,7 @@ export default function Grid({ levelData, onWin, onLose }: Props) {
                         width: cellSize / 2,
                         backgroundColor: color,
                         left: 0,
+                        zIndex: 9,
                       }}
                     />
                   )}
@@ -254,6 +356,7 @@ export default function Grid({ levelData, onWin, onLose }: Props) {
                         width: cellSize / 2,
                         backgroundColor: color,
                         right: 0,
+                        zIndex: 9,
                       }}
                     />
                   )}
@@ -263,10 +366,11 @@ export default function Grid({ levelData, onWin, onLose }: Props) {
               {cell.connector && (
                 <View
                   style={{
-                    width: cellSize * 0.4,
-                    height: cellSize * 0.4,
-                    borderRadius: 6,
-                    backgroundColor: "#666",
+                    position: "absolute",
+                    width: cellSize * 0.7,
+                    height: cellSize * 0.7,
+                    borderRadius: (cellSize * 0.7) / 2,
+                    backgroundColor: "#444",
                     zIndex: 1,
                   }}
                 />
@@ -302,7 +406,5 @@ const styles = StyleSheet.create({
   cell: {
     justifyContent: "center",
     alignItems: "center",
-    borderWidth: 0.5,
-    borderColor: "#333",
   },
 });

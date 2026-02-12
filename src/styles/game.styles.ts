@@ -97,6 +97,8 @@ export const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 20,
     alignItems: "center",
+    justifyContent: "center",
+    height: 240,
   },
 
   modalTitle: {

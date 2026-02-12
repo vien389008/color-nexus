@@ -7,6 +7,16 @@ export const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
   },
+  header: {
+    width: "100%",
+    alignItems: "flex-end",
+    paddingHorizontal: 20,
+  },
+
+  closeButton: {
+    padding: 6,
+  },
+
   scrollContent: {
     paddingHorizontal: 20,
     paddingVertical: 20,

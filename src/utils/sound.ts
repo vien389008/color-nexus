@@ -4,15 +4,22 @@ import { Platform, Vibration } from "react-native";
 
 const SOUND_KEY = "SOUND_ENABLED";
 
+/* =========================
+   INTERNAL STATE
+========================= */
+
 let enabled = true;
 
-/* ===== PLAYERS ===== */
-
+let swipePlayer: AudioPlayer | null = null;
 let connectPlayer: AudioPlayer | null = null;
 let winPlayer: AudioPlayer | null = null;
-let swipePlayer: AudioPlayer | null = null;
+let bgmPlayer: AudioPlayer | null = null;
 
-/* ===== SETTINGS ===== */
+let bgmListenerAdded = false;
+
+/* =========================
+   SETTINGS
+========================= */
 
 export async function loadSoundSetting() {
   const v = await AsyncStorage.getItem(SOUND_KEY);
@@ -22,33 +29,82 @@ export async function loadSoundSetting() {
 export async function setSoundEnabled(value: boolean) {
   enabled = value;
   await AsyncStorage.setItem(SOUND_KEY, String(value));
+
+  if (!bgmPlayer) return;
+
+  try {
+    if (enabled) {
+      bgmPlayer.play();
+    } else {
+      bgmPlayer.pause();
+    }
+  } catch {}
 }
 
 export function isSoundEnabled() {
   return enabled;
 }
 
-/* ===== LOAD SOUNDS ===== */
+/* =========================
+   LOAD ALL SOUNDS
+========================= */
 
 export async function loadSounds() {
   await loadSoundSetting();
 
+  // SFX
+  if (!swipePlayer) {
+    swipePlayer = createAudioPlayer(require("../../assets/sounds/swipe.mp3"));
+  }
+
   if (!connectPlayer) {
     connectPlayer = createAudioPlayer(
-      require("../../assets/sounds/connect.wav"),
+      require("../../assets/sounds/connect.mp3"),
     );
   }
 
   if (!winPlayer) {
-    winPlayer = createAudioPlayer(require("../../assets/sounds/win.wav"));
+    winPlayer = createAudioPlayer(require("../../assets/sounds/win.mp3"));
   }
 
-  if (!swipePlayer) {
-    swipePlayer = createAudioPlayer(require("../../assets/sounds/swipe.wav"));
+  // BGM
+  if (!bgmPlayer) {
+    bgmPlayer = createAudioPlayer(require("../../assets/sounds/bg.mp3"));
+  }
+
+  // Loop BGM bằng playbackStatusUpdate
+  if (bgmPlayer && !bgmListenerAdded) {
+    bgmListenerAdded = true;
+
+    bgmPlayer.addListener("playbackStatusUpdate", (status: any) => {
+      if (status?.didJustFinish) {
+        try {
+          bgmPlayer?.seekTo(0);
+          bgmPlayer?.play();
+        } catch {}
+      }
+    });
+  }
+
+  // Tự phát nếu bật
+  if (enabled) {
+    try {
+      bgmPlayer?.play();
+    } catch {}
   }
 }
 
-/* ===== PLAY ===== */
+/* =========================
+   PLAY SFX
+========================= */
+
+export function playSwipe() {
+  if (!enabled || !swipePlayer) return;
+  try {
+    swipePlayer.seekTo(0);
+    swipePlayer.play();
+  } catch {}
+}
 
 export function playConnect() {
   if (!enabled || !connectPlayer) return;
@@ -67,24 +123,38 @@ export function playWin() {
   } catch {}
 }
 
-export function playSwipe() {
-  if (!enabled || !swipePlayer) return;
+/* =========================
+   CONTROL BGM
+========================= */
+
+export function playBGM() {
+  if (!enabled || !bgmPlayer) return;
   try {
-    swipePlayer.seekTo(0);
-    swipePlayer.play();
+    bgmPlayer.play();
   } catch {}
 }
 
-/* ===== CLEANUP ===== */
+export function stopBGM() {
+  try {
+    bgmPlayer?.pause();
+  } catch {}
+}
+
+/* =========================
+   CLEANUP
+========================= */
 
 export function unloadSounds() {
   try {
+    swipePlayer?.pause();
     connectPlayer?.pause();
     winPlayer?.pause();
-    swipePlayer?.pause();
+    bgmPlayer?.pause();
   } catch {}
 
+  swipePlayer = null;
   connectPlayer = null;
   winPlayer = null;
-  swipePlayer = null;
+  bgmPlayer = null;
+  bgmListenerAdded = false;
 }
