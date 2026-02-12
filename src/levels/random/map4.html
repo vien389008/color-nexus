@@ -1,0 +1,180 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Flow 4x4 Safe Generator</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+      body {
+        font-family: monospace;
+        background: #111;
+        color: #0f0;
+        padding: 20px;
+      }
+      button {
+        padding: 10px 20px;
+        font-size: 16px;
+        margin-bottom: 20px;
+        cursor: pointer;
+      }
+      pre {
+        white-space: pre-wrap;
+      }
+    </style>
+  </head>
+  <body>
+    <button id="generate">Generate 30 Maps</button>
+    <pre id="output"></pre>
+
+    <script>
+      $(function () {
+        const SIZE = 4;
+        const TOTAL = SIZE * SIZE;
+        const PATH_COUNT = 4;
+
+        function xyToIndex(x, y) {
+          return y * SIZE + x;
+        }
+
+        function indexToXY(i) {
+          return { x: i % SIZE, y: Math.floor(i / SIZE) };
+        }
+
+        function getNeighbors(i) {
+          const { x, y } = indexToXY(i);
+          const dirs = [
+            [1, 0],
+            [-1, 0],
+            [0, 1],
+            [0, -1],
+          ];
+          const result = [];
+          for (let d of dirs) {
+            const nx = x + d[0];
+            const ny = y + d[1];
+            if (nx >= 0 && nx < SIZE && ny >= 0 && ny < SIZE) {
+              result.push(xyToIndex(nx, ny));
+            }
+          }
+          return result.sort(() => Math.random() - 0.5);
+        }
+
+        function randomColor() {
+          const min = 50;
+          const max = 200;
+          const r = Math.floor(Math.random() * (max - min)) + min;
+          const g = Math.floor(Math.random() * (max - min)) + min;
+          const b = Math.floor(Math.random() * (max - min)) + min;
+          return (
+            "#" +
+            r.toString(16).padStart(2, "0") +
+            g.toString(16).padStart(2, "0") +
+            b.toString(16).padStart(2, "0")
+          );
+        }
+
+        function generateSolution() {
+          const used = new Array(TOTAL).fill(false);
+          const paths = [];
+
+          function backtrack() {
+            if (paths.length === PATH_COUNT) {
+              return used.every((v) => v);
+            }
+
+            let start = -1;
+            for (let i = 0; i < TOTAL; i++) {
+              if (!used[i]) {
+                start = i;
+                break;
+              }
+            }
+
+            if (start === -1) return false;
+
+            used[start] = true;
+            const path = [start];
+
+            function extend(current) {
+              if (path.length >= 3) {
+                paths.push([...path]);
+                if (backtrack()) return true;
+                paths.pop();
+              }
+
+              for (let n of getNeighbors(current)) {
+                if (!used[n]) {
+                  used[n] = true;
+                  path.push(n);
+
+                  if (extend(n)) return true;
+
+                  path.pop();
+                  used[n] = false;
+                }
+              }
+
+              return false;
+            }
+
+            if (extend(start)) return true;
+
+            used[start] = false;
+            return false;
+          }
+
+          if (backtrack()) return paths;
+          return null;
+        }
+
+        function createMap() {
+          let solution = null;
+          while (!solution) {
+            solution = generateSolution();
+          }
+
+          const endpoints = [];
+          const usedColors = new Set();
+
+          solution.forEach((path) => {
+            let color;
+            do {
+              color = randomColor();
+            } while (usedColors.has(color));
+
+            usedColors.add(color);
+
+            endpoints.push({ index: path[0], color });
+            endpoints.push({ index: path[path.length - 1], color });
+          });
+
+          return endpoints;
+        }
+
+        $("#generate").click(function () {
+          let output = "";
+
+          for (let i = 1; i <= 30; i++) {
+            const endpoints = createMap();
+
+            output += `// Map ${i}\n`;
+            output += `{\n`;
+            output += `  size: 4,\n`;
+            output += `  endpoints: [\n`;
+
+            endpoints.forEach((e, idx) => {
+              output += `    { index: ${e.index}, color: "${e.color}" }`;
+              if (idx < endpoints.length - 1) output += ",";
+              output += "\n";
+            });
+
+            output += `  ],\n`;
+            output += `},\n\n`;
+          }
+
+          $("#output").text(output);
+        });
+      });
+    </script>
+  </body>
+</html>

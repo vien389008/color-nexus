@@ -17,7 +17,7 @@ import { useI18n } from "../src/i18n/I18nContext";
 import { levels } from "../src/levels/levels";
 import { styles } from "../src/styles/game.styles";
 
-const TOTAL_TIME = 30000;
+const TOTAL_TIME = 60000;
 
 export default function Game() {
   const router = useRouter();

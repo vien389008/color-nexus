@@ -1,0 +1,223 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>4x4 Flow Blocked - Perfect Generator</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+      body {
+        font-family: monospace;
+        background: #111;
+        color: #0f0;
+        padding: 20px;
+      }
+      button {
+        padding: 10px 20px;
+        margin-bottom: 20px;
+        cursor: pointer;
+      }
+      pre {
+        white-space: pre-wrap;
+      }
+    </style>
+  </head>
+  <body>
+    <button id="generate">Generate 20 Perfect Maps</button>
+    <pre id="output"></pre>
+
+    <script>
+      $(function () {
+        const SIZE = 4;
+        const TOTAL = SIZE * SIZE;
+        const MAP_COUNT = 20;
+        const PATH_COUNT = 2;
+
+        function xyToIndex(x, y) {
+          return y * SIZE + x;
+        }
+        function indexToXY(i) {
+          return { x: i % SIZE, y: Math.floor(i / SIZE) };
+        }
+
+        function neighbors(i) {
+          const { x, y } = indexToXY(i);
+          const dirs = [
+            [1, 0],
+            [-1, 0],
+            [0, 1],
+            [0, -1],
+          ];
+          const arr = [];
+          for (let d of dirs) {
+            let nx = x + d[0],
+              ny = y + d[1];
+            if (nx >= 0 && nx < SIZE && ny >= 0 && ny < SIZE) {
+              arr.push(xyToIndex(nx, ny));
+            }
+          }
+          return arr;
+        }
+
+        function randomColor() {
+          const min = 60,
+            max = 200;
+          const r = Math.floor(Math.random() * (max - min)) + min;
+          const g = Math.floor(Math.random() * (max - min)) + min;
+          const b = Math.floor(Math.random() * (max - min)) + min;
+          return (
+            "#" +
+            r.toString(16).padStart(2, "0") +
+            g.toString(16).padStart(2, "0") +
+            b.toString(16).padStart(2, "0")
+          );
+        }
+
+        // ==== CHECK CONNECTIVITY OF FREE CELLS ====
+        function isConnected(blocked) {
+          const free = [];
+          for (let i = 0; i < TOTAL; i++) {
+            if (!blocked.includes(i)) free.push(i);
+          }
+
+          if (free.length === 0) return false;
+
+          const visited = new Set();
+          const stack = [free[0]];
+          visited.add(free[0]);
+
+          while (stack.length) {
+            const cur = stack.pop();
+            for (let n of neighbors(cur)) {
+              if (!blocked.includes(n) && !visited.has(n)) {
+                visited.add(n);
+                stack.push(n);
+              }
+            }
+          }
+
+          return visited.size === free.length;
+        }
+
+        // ==== GENERATE FULL COVERING PATHS ON FREE REGION ====
+        function generatePaths(blocked) {
+          const used = new Array(TOTAL).fill(false);
+          blocked.forEach((i) => (used[i] = true));
+
+          const paths = [];
+
+          function backtrack() {
+            if (paths.length === PATH_COUNT) {
+              return used.every((v) => v);
+            }
+
+            let start = -1;
+            for (let i = 0; i < TOTAL; i++) {
+              if (!used[i]) {
+                start = i;
+                break;
+              }
+            }
+
+            if (start === -1) return false;
+
+            used[start] = true;
+            const path = [start];
+
+            function extend(pos) {
+              if (path.length >= 2) {
+                paths.push([...path]);
+                if (backtrack()) return true;
+                paths.pop();
+              }
+
+              for (let n of neighbors(pos).sort(() => Math.random() - 0.5)) {
+                if (!used[n]) {
+                  used[n] = true;
+                  path.push(n);
+                  if (extend(n)) return true;
+                  path.pop();
+                  used[n] = false;
+                }
+              }
+
+              return false;
+            }
+
+            if (extend(start)) return true;
+
+            used[start] = false;
+            return false;
+          }
+
+          if (backtrack()) return paths;
+          return null;
+        }
+
+        // ==== MAIN GENERATOR ====
+        function generateMap() {
+          while (true) {
+            // random 2-4 blocked
+            const blocked = [];
+            const blockCount = Math.floor(Math.random() * 3) + 2;
+
+            while (blocked.length < blockCount) {
+              const r = Math.floor(Math.random() * TOTAL);
+              if (!blocked.includes(r)) blocked.push(r);
+            }
+
+            // check connectivity first
+            if (!isConnected(blocked)) continue;
+
+            const solution = generatePaths(blocked);
+            if (!solution) continue;
+
+            const endpoints = [];
+            const usedColors = new Set();
+
+            solution.forEach((path) => {
+              let color;
+              do {
+                color = randomColor();
+              } while (usedColors.has(color));
+              usedColors.add(color);
+
+              endpoints.push({ index: path[0], color });
+              endpoints.push({ index: path[path.length - 1], color });
+            });
+
+            return { endpoints, blocked };
+          }
+        }
+
+        $("#generate").click(function () {
+          $("#output").text("Generating... ⏳");
+
+          setTimeout(() => {
+            let output = "";
+
+            for (let i = 1; i <= MAP_COUNT; i++) {
+              const data = generateMap();
+
+              output += `// Map ${i}\n`;
+              output += `{\n`;
+              output += `  size: 4,\n`;
+              output += `  endpoints: [\n`;
+
+              data.endpoints.forEach((e, idx) => {
+                output += `    { index: ${e.index}, color: "${e.color}" }`;
+                if (idx < data.endpoints.length - 1) output += ",";
+                output += "\n";
+              });
+
+              output += `  ],\n`;
+              output += `  blocked: [${data.blocked.join(", ")}],\n`;
+              output += `},\n\n`;
+            }
+
+            $("#output").text(output);
+          }, 100);
+        });
+      });
+    </script>
+  </body>
+</html>
