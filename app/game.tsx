@@ -1,179 +1,226 @@
+import { MaterialIcons } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
-import { Alert, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import {
+  Alert,
+  Animated,
+  Easing,
+  Modal,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Grid from "../src/components/Grid";
-
+import { levels } from "../src/levels/levels";
+import { styles } from "../src/styles/game.styles";
 export default function Game() {
-  // =========================
-  // LEVEL & SCORE
-  // =========================
-  const [level, setLevel] = useState(1);
+  const router = useRouter();
+
+  const [currentLevelIndex, setCurrentLevelIndex] = useState(0);
   const [score, setScore] = useState(0);
+  const [highScore, setHighScore] = useState(0);
+  const [modalType, setModalType] = useState<"pause" | "confirmReset" | null>(
+    null,
+  );
+  const [gridResetKey, setGridResetKey] = useState(0);
 
-  // =========================
-  // GRID SIZE THEO LEVEL
-  // =========================
-  const getGridSize = (level: number) => {
-    if (level <= 5) return 3;
-    if (level <= 15) return 4;
-    if (level <= 30) return 5;
-    if (level <= 60) return 6;
-    return 7;
-  };
+  const isPaused = modalType !== null;
 
-  const gridSize = getGridSize(level);
+  const progressAnim = useRef(new Animated.Value(1)).current;
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // =========================
-  // TIMER THEO GRID
-  // =========================
-  const getTimeForGrid = (size: number) => {
-    if (size === 3) return 10;
-    if (size === 4) return 15;
-    if (size === 5) return 20;
-    if (size === 6) return 25;
-    return 30;
-  };
+  const currentLevel = levels[currentLevelIndex];
 
-  const [timeLeft, setTimeLeft] = useState(getTimeForGrid(gridSize));
-  const timerRef = useRef<any>(null);
-
-  // =========================
-  // TIMER EFFECT
-  // =========================
+  // ================= LOAD HIGH SCORE =================
   useEffect(() => {
-    // Reset timer mỗi khi level đổi
-    setTimeLeft(getTimeForGrid(gridSize));
+    const loadHighScore = async () => {
+      const saved = await AsyncStorage.getItem("HIGH_SCORE");
+      if (saved) setHighScore(Number(saved));
+    };
+    loadHighScore();
+  }, []);
 
-    timerRef.current = setInterval(() => {
-      setTimeLeft((prev: number) => {
-        if (prev <= 1) {
-          clearInterval(timerRef.current);
-          handleGameOver();
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
+  // ================= TIMER + PROGRESS =================
+  useEffect(() => {
+    if (isPaused) {
+      progressAnim.stopAnimation();
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+      return;
+    }
+
+    progressAnim.setValue(1);
+
+    Animated.timing(progressAnim, {
+      toValue: 0,
+      duration: 15000,
+      easing: Easing.linear,
+      useNativeDriver: false,
+    }).start(({ finished }) => {
+      if (finished) handleGameOver();
+    });
 
     return () => {
+      progressAnim.stopAnimation();
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [level]);
+  }, [currentLevelIndex, isPaused]);
 
-  // =========================
-  // WIN
-  // =========================
-  const handleWin = () => {
-    clearInterval(timerRef.current);
-    setScore((prev) => prev + 1);
-    setLevel((prev) => prev + 1);
+  // ================= WIN =================
+  const handleWin = async () => {
+    const newScore = score + 1;
+    setScore(newScore);
+
+    if (newScore > highScore) {
+      setHighScore(newScore);
+      await AsyncStorage.setItem("HIGH_SCORE", newScore.toString());
+    }
+
+    if (currentLevelIndex < levels.length - 1) {
+      setCurrentLevelIndex((prev) => prev + 1);
+    } else {
+      Alert.alert("Hoàn thành!", "Bạn đã thắng tất cả màn!");
+    }
   };
 
-  // =========================
-  // GAME OVER
-  // =========================
+  // ================= GAME OVER =================
   const handleGameOver = () => {
-    Alert.alert("Game Over", "Hết thời gian!", [
+    Alert.alert("Hết giờ!", "Bạn thua rồi 😢", [
       {
         text: "Chơi lại",
         onPress: () => {
           setScore(0);
-          setLevel(1);
+          setCurrentLevelIndex(0);
+          setGridResetKey((prev) => prev + 1);
         },
       },
     ]);
   };
 
-  // =========================
-  // RESTART BUTTON
-  // =========================
-  const handleRestart = () => {
-    clearInterval(timerRef.current);
+  // ================= RESET LEVEL =================
+  const confirmReset = () => {
+    setModalType(null);
+    setGridResetKey((prev) => prev + 1);
+  };
+
+  // ================= GO HOME =================
+  const goHome = () => {
+    setModalType(null);
     setScore(0);
-    setLevel(1);
+    setCurrentLevelIndex(0);
+    setGridResetKey(0);
+    router.replace("/");
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
-      {/* ================= TOP BAR ================= */}
-      <View style={styles.topBar}>
-        <Text style={styles.score}>Score: {score}</Text>
-        <Text style={styles.timer}>{timeLeft}</Text>
-        <Text style={styles.level}>Level: {level}</Text>
+    <SafeAreaView style={styles.container}>
+      {/* ===== PROGRESS TIMER BAR ===== */}
+      <View style={styles.timerWrapper}>
+        <View style={styles.clockIcon}>
+          <MaterialIcons name="schedule" size={20} color="#000" />
+        </View>
+
+        <View style={styles.progressContainer}>
+          <Animated.View
+            style={[
+              styles.progressBar,
+              {
+                width: progressAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: ["0%", "100%"],
+                }),
+              },
+            ]}
+          />
+        </View>
+
+        <Text style={styles.roundText}>VÒNG: {currentLevelIndex + 1}</Text>
       </View>
 
-      {/* ================= GRID ================= */}
+      {/* ===== SCORE ===== */}
+      <View style={styles.scoreBar}>
+        <Text style={styles.hudText}>Score: {score}</Text>
+        <Text style={styles.hudText}>High: {highScore}</Text>
+      </View>
+
+      {/* ===== GRID ===== */}
       <View style={styles.gridWrapper}>
-        <Grid size={gridSize} onWin={handleWin} />
+        <Grid
+          key={`${currentLevelIndex}-${gridResetKey}`}
+          levelData={currentLevel}
+          onWin={handleWin}
+        />
       </View>
 
-      {/* ================= BOTTOM BUTTONS ================= */}
+      {/* ===== BOTTOM BUTTONS ===== */}
       <View style={styles.bottomBar}>
-        <TouchableOpacity style={styles.button}>
+        <TouchableOpacity
+          style={styles.button}
+          onPress={() => setModalType("pause")}
+        >
           <Text style={styles.buttonText}>Pause</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.button} onPress={handleRestart}>
-          <Text style={styles.buttonText}>Restart</Text>
+        <TouchableOpacity
+          style={[styles.button, styles.resetButton]}
+          onPress={() => setModalType("confirmReset")}
+        >
+          <Text style={styles.buttonText}>Reset</Text>
         </TouchableOpacity>
       </View>
+
+      {/* ===== MODAL ===== */}
+      <Modal visible={modalType !== null} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalBox}>
+            {modalType === "pause" && (
+              <>
+                <Text style={styles.modalTitle}>Game Paused</Text>
+
+                <TouchableOpacity
+                  style={styles.modalButton}
+                  onPress={() => setModalType(null)}
+                >
+                  <Text style={styles.modalButtonText}>Continue</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.homeButton]}
+                  onPress={goHome}
+                >
+                  <Text style={styles.modalButtonText}>Home</Text>
+                </TouchableOpacity>
+              </>
+            )}
+
+            {modalType === "confirmReset" && (
+              <>
+                <Text style={styles.modalTitle}>
+                  Bạn có chắc chắn muốn chơi lại không?
+                </Text>
+
+                <TouchableOpacity
+                  style={styles.modalButton}
+                  onPress={confirmReset}
+                >
+                  <Text style={styles.modalButtonText}>Có</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.homeButton]}
+                  onPress={() => setModalType(null)}
+                >
+                  <Text style={styles.modalButtonText}>Không</Text>
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
-
-// ================= STYLES =================
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#0F0F0F",
-    justifyContent: "space-between",
-  },
-
-  topBar: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingVertical: 15,
-  },
-
-  score: {
-    color: "#FFFFFF",
-    fontSize: 16,
-  },
-
-  timer: {
-    color: "#FF5C5C",
-    fontSize: 22,
-    fontWeight: "bold",
-  },
-
-  level: {
-    color: "#AAAAAA",
-    fontSize: 16,
-  },
-
-  gridWrapper: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-
-  bottomBar: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    paddingVertical: 20,
-  },
-
-  button: {
-    backgroundColor: "#6C63FF",
-    paddingVertical: 12,
-    paddingHorizontal: 35,
-    borderRadius: 25,
-  },
-
-  buttonText: {
-    color: "#FFFFFF",
-    fontSize: 16,
-  },
-});

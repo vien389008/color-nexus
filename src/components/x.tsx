@@ -2,28 +2,24 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Dimensions, StyleSheet, View } from "react-native";
 import { PanGestureHandler } from "react-native-gesture-handler";
 import { LevelData } from "../levels/levels";
-import { playConnect, playSwipe, playWin } from "../utils/sound";
 
 type Props = {
   levelData: LevelData;
   onWin: () => void;
-  onLose?: () => void;
 };
 
 const screenWidth = Dimensions.get("window").width;
 
-export default function Grid({ levelData, onWin, onLose }: Props) {
+export default function Grid({ levelData, onWin }: Props) {
   const { size, endpoints, blocked = [], connectors = [] } = levelData;
 
   const gridSize = screenWidth * 0.9;
   const cellSize = gridSize / size;
   const pipeWidth = cellSize * 0.45;
   const totalCells = size * size;
+
   const playableCells = totalCells - blocked.length - connectors.length;
 
-  // =============================
-  // GRID DATA
-  // =============================
   const gridData = useMemo(() => {
     const data = Array.from({ length: totalCells }, (_, i) => ({
       id: i,
@@ -53,9 +49,6 @@ export default function Grid({ levelData, onWin, onLose }: Props) {
     setLockedPaths([]);
   }, [levelData]);
 
-  // =============================
-  // HELPERS
-  // =============================
   const getCellFromTouch = (x: number, y: number) => {
     const col = Math.floor(x / cellSize);
     const row = Math.floor(y / cellSize);
@@ -77,25 +70,25 @@ export default function Grid({ levelData, onWin, onLose }: Props) {
 
   const isCellOccupied = (id: number) => {
     const cell = gridData[id];
-    if (cell.connector) return false;
+    if (cell.connector) return false; // cho phép xuyên connector
     return lockedPaths.some((p) => p.cells.includes(id));
   };
 
   const getCellColor = (id: number) => {
     if (currentPath.includes(id) && activeColor) return activeColor;
+
     const locked = lockedPaths.find((p) => p.cells.includes(id));
     return locked ? locked.color : "transparent";
   };
 
-  // =============================
-  // GESTURE
-  // =============================
+  // ===== GESTURE =====
   const handleGesture = (event: any) => {
     const { x, y } = event.nativeEvent;
     const index = getCellFromTouch(x, y);
     if (index === null) return;
 
     const cell = gridData[index];
+
     if (cell.blocked) return;
 
     if (!activeColor) {
@@ -103,7 +96,6 @@ export default function Grid({ levelData, onWin, onLose }: Props) {
         setLockedPaths((prev) => prev.filter((p) => p.color !== cell.color));
         setActiveColor(cell.color);
         setCurrentPath([index]);
-        playSwipe();
       }
       return;
     }
@@ -117,7 +109,6 @@ export default function Grid({ levelData, onWin, onLose }: Props) {
       (!cell.color || cell.color === activeColor)
     ) {
       setCurrentPath([...currentPath, index]);
-      playSwipe();
     }
   };
 
@@ -134,17 +125,19 @@ export default function Grid({ levelData, onWin, onLose }: Props) {
       ];
 
       setLockedPaths(newLocked);
-      playConnect();
 
       if (newLocked.length === uniqueColors.length) {
         const filled = newLocked.flatMap((p) => p.cells);
+
+        // loại trùng cell (đặc biệt connector)
         const uniqueFilled = [...new Set(filled)];
+
+        // bỏ connector khỏi tính toán
         const validFilled = uniqueFilled.filter(
           (id) => !connectors.includes(id),
         );
 
         if (validFilled.length === playableCells) {
-          playWin();
           onWin();
         }
       }
@@ -154,9 +147,6 @@ export default function Grid({ levelData, onWin, onLose }: Props) {
     setActiveColor(null);
   };
 
-  // =============================
-  // RENDER
-  // =============================
   return (
     <PanGestureHandler onGestureEvent={handleGesture} onEnded={handleEnd}>
       <View style={[styles.grid, { width: gridSize, height: gridSize }]}>
@@ -173,16 +163,21 @@ export default function Grid({ levelData, onWin, onLose }: Props) {
           }
 
           const indexInPath = pathCells.indexOf(cell.id);
+
           const prev = indexInPath > 0 ? pathCells[indexInPath - 1] : null;
+
           const next =
             indexInPath !== -1 && indexInPath < pathCells.length - 1
               ? pathCells[indexInPath + 1]
               : null;
 
           const connectTop = prev === cell.id - size || next === cell.id - size;
+
           const connectBottom =
             prev === cell.id + size || next === cell.id + size;
+
           const connectLeft = prev === cell.id - 1 || next === cell.id - 1;
+
           const connectRight = prev === cell.id + 1 || next === cell.id + 1;
 
           return (
@@ -197,6 +192,7 @@ export default function Grid({ levelData, onWin, onLose }: Props) {
                 },
               ]}
             >
+              {/* PIPE */}
               {indexInPath !== -1 && (
                 <>
                   <View
@@ -260,6 +256,7 @@ export default function Grid({ levelData, onWin, onLose }: Props) {
                 </>
               )}
 
+              {/* CONNECTOR VISUAL */}
               {cell.connector && (
                 <View
                   style={{
@@ -272,6 +269,7 @@ export default function Grid({ levelData, onWin, onLose }: Props) {
                 />
               )}
 
+              {/* ENDPOINT */}
               {cell.color && !cell.blocked && (
                 <View
                   style={{
