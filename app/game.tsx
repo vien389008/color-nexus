@@ -17,7 +17,7 @@ import { useI18n } from "../src/i18n/I18nContext";
 import { levels } from "../src/levels/levels";
 import { styles } from "../src/styles/game.styles";
 
-const TOTAL_TIME = 60000;
+const TOTAL_TIME = 120000;
 
 export default function Game() {
   const router = useRouter();
@@ -26,9 +26,9 @@ export default function Game() {
   const [currentLevelIndex, setCurrentLevelIndex] = useState(0);
   const [score, setScore] = useState(0);
   const [highScore, setHighScore] = useState(0);
-  const [modalType, setModalType] = useState<"pause" | "confirmReset" | null>(
-    null,
-  );
+  const [modalType, setModalType] = useState<
+    "pause" | "confirmReset" | "completed" | null
+  >(null);
   const [gridResetKey, setGridResetKey] = useState(0);
 
   const isPaused = modalType !== null;
@@ -38,7 +38,7 @@ export default function Game() {
 
   const currentLevel = levels[currentLevelIndex];
 
-  /* LOAD HIGH SCORE */
+  /* ================= LOAD HIGH SCORE ================= */
 
   useEffect(() => {
     const loadHighScore = async () => {
@@ -48,7 +48,7 @@ export default function Game() {
     loadHighScore();
   }, []);
 
-  /* TIMER */
+  /* ================= TIMER ================= */
 
   useEffect(() => {
     if (isPaused) {
@@ -77,7 +77,7 @@ export default function Game() {
     remainingTimeRef.current = TOTAL_TIME;
   };
 
-  /* WIN */
+  /* ================= WIN ================= */
 
   const handleWin = async () => {
     const newScore = score + 1;
@@ -92,11 +92,13 @@ export default function Game() {
       resetTimer();
       setCurrentLevelIndex((prev) => prev + 1);
     } else {
-      Alert.alert(t.game.completedTitle, t.game.completedMessage);
+      // Hoàn thành tất cả màn
+      progressAnim.stopAnimation();
+      setModalType("completed");
     }
   };
 
-  /* GAME OVER */
+  /* ================= GAME OVER ================= */
 
   const handleGameOver = () => {
     Alert.alert(t.game.timeUpTitle, t.game.timeUpMessage, [
@@ -112,7 +114,7 @@ export default function Game() {
     ]);
   };
 
-  /* RESET */
+  /* ================= RESET ================= */
 
   const confirmReset = () => {
     setModalType(null);
@@ -122,7 +124,17 @@ export default function Game() {
     resetTimer();
   };
 
-  /* HOME */
+  /* ================= REPLAY ALL ================= */
+
+  const handleReplayAll = () => {
+    setModalType(null);
+    setScore(0);
+    setCurrentLevelIndex(0);
+    setGridResetKey((prev) => prev + 1);
+    resetTimer();
+  };
+
+  /* ================= HOME ================= */
 
   const goHome = () => {
     setModalType(null);
@@ -132,6 +144,8 @@ export default function Game() {
     resetTimer();
     router.replace("/");
   };
+
+  /* ================= UI ================= */
 
   return (
     <SafeAreaView style={styles.container}>
@@ -200,6 +214,7 @@ export default function Game() {
       <Modal visible={modalType !== null} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={styles.modalBox}>
+            {/* PAUSE */}
             {modalType === "pause" && (
               <>
                 <Text style={styles.modalTitle}>{t.game.paused}</Text>
@@ -220,6 +235,7 @@ export default function Game() {
               </>
             )}
 
+            {/* CONFIRM RESET */}
             {modalType === "confirmReset" && (
               <>
                 <Text style={styles.modalTitle}>{t.game.confirmReset}</Text>
@@ -236,6 +252,27 @@ export default function Game() {
                   onPress={() => setModalType(null)}
                 >
                   <Text style={styles.modalButtonText}>{t.game.no}</Text>
+                </TouchableOpacity>
+              </>
+            )}
+
+            {/* COMPLETED ALL LEVELS */}
+            {modalType === "completed" && (
+              <>
+                <Text style={styles.modalTitle}>{t.game.completedTitle}</Text>
+
+                <TouchableOpacity
+                  style={styles.modalButton}
+                  onPress={handleReplayAll}
+                >
+                  <Text style={styles.modalButtonText}>{t.game.playAgain}</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.homeButton]}
+                  onPress={goHome}
+                >
+                  <Text style={styles.modalButtonText}>{t.game.home}</Text>
                 </TouchableOpacity>
               </>
             )}

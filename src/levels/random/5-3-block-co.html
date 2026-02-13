@@ -1,0 +1,303 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Flow Free · 20 bản đồ 5x5 chuẩn nối đường</title>
+    <style>
+      * {
+        box-sizing: border-box;
+        font-family: "Segoe UI", "Courier New", monospace;
+      }
+      body {
+        background: linear-gradient(145deg, #1e2b3a 0%, #0f1722 100%);
+        margin: 0;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 2rem 1rem;
+      }
+      .container {
+        max-width: 1200px;
+        width: 100%;
+        background: rgba(255, 255, 255, 0.08);
+        backdrop-filter: blur(4px);
+        border-radius: 2rem;
+        padding: 2rem;
+        box-shadow: 0 20px 30px rgba(0, 0, 0, 0.6);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+      }
+      h1 {
+        color: #f2e9c7;
+        font-weight: 500;
+        letter-spacing: 2px;
+        font-size: 1.9rem;
+        margin-top: 0;
+        margin-bottom: 0.5rem;
+        text-shadow: 0 4px 8px #00000030;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      h1 span {
+        background: #3f5e4b;
+        padding: 0.2rem 1rem;
+        border-radius: 40px;
+        font-size: 1.2rem;
+        color: #faf3dd;
+      }
+      .btn {
+        background: #cbbf7a;
+        border: none;
+        color: #0a0f14;
+        font-weight: bold;
+        font-size: 1.3rem;
+        padding: 1rem 2.5rem;
+        border-radius: 60px;
+        letter-spacing: 2px;
+        cursor: pointer;
+        box-shadow:
+          0 8px 0 #6b5e3a,
+          0 12px 25px black;
+        transition: 0.08s linear;
+        border: 1px solid #efe9bf;
+        margin: 1rem 0 1.8rem 0;
+      }
+      .btn:hover {
+        transform: translateY(6px);
+        box-shadow:
+          0 2px 0 #5a4e30,
+          0 16px 30px black;
+        background: #eadb9c;
+      }
+      pre {
+        background: #0c0f14;
+        color: #d6d9b9;
+        padding: 1.8rem;
+        border-radius: 24px;
+        border: 1px solid #5c7a6b;
+        font-size: 0.8rem;
+        line-height: 1.5;
+        overflow-x: auto;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+        box-shadow: inset 0 0 20px #00000070;
+        max-height: 550px;
+        overflow-y: auto;
+      }
+      .stats {
+        color: #bccfbf;
+        margin-top: 1rem;
+        font-size: 0.95rem;
+        display: flex;
+        justify-content: space-between;
+      }
+      .note {
+        background: #2e3f3a;
+        padding: 0.7rem 1.5rem;
+        border-radius: 30px;
+        color: #f5efd7;
+        display: inline-block;
+        font-size: 0.85rem;
+        border-left: 6px solid #efc9a8;
+      }
+      .footer {
+        color: #7f998b;
+        margin-top: 2.2rem;
+        font-style: italic;
+        border-top: 1px dashed #4c665b;
+        padding-top: 1.5rem;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>
+        🧩 Nối đường · 5x5
+        <span>20 bản đồ</span>
+      </h1>
+      <div
+        style="
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-end;
+        "
+      >
+        <div class="note">
+          ⚡ mỗi map: 2 cặp màu · ô chung (connector) ở giữa · blocked 16 ô ·
+          luôn có lời giải
+        </div>
+        <button class="btn" id="generateBtn">⏎ SINH 20 MAP</button>
+      </div>
+
+      <!-- Hiển thị JSON format chính xác theo yêu cầu -->
+      <pre id="jsonOutput">⏳ Nhấn nút để tạo 20 map 5x5 …</pre>
+
+      <div class="stats">
+        <span>✅ định dạng: { size, endpoints, blocked, connectors }</span>
+        <span>🎨 màu sắc phân biệt rõ</span>
+      </div>
+      <div class="footer">
+        ✦ mỗi map có 1 connector cố ĐỊNH (ô trung tâm) – không sát mép, không
+        trùng endpoint <br />
+        ✦ đường đi qua connector 2 lần (2 màu giao nhau) – tất cả ô không
+        blocked đều được dùng
+      </div>
+    </div>
+
+    <script>
+      (function () {
+        // ------------------------------------------------------------
+        // BẢNG MÀU SIÊU TƯƠNG PHẢN – khác biệt rõ ràng, không lẫn
+        // ------------------------------------------------------------
+        const COLOR_PALETTE = [
+          "#E63946", // đỏ tươi
+          "#2A9D8F", // xanh ngọc bích
+          "#E9C46A", // vàng mật
+          "#F4A261", // cam đất
+          "#9C89B8", // oải hương
+          "#6D597A", // tím than
+          "#52B788", // xanh lá mạ
+          "#FFB703", // hổ phách
+          "#FB8500", // cam neon
+          "#8ECAE6", // xanh da trời sáng
+          "#FF006E", // hồng đậm
+          "#8338EC", // tím điện
+        ];
+
+        // --- các ô KHÔNG NẰM SÁT MÉP (hàng 1..3, cột 1..3) ---
+        const INTERIOR_INDICES = [6, 7, 8, 11, 12, 13, 16, 17, 18];
+
+        // ----- trộn mảng (Fisher–Yates) -----
+        function shuffleArray(arr) {
+          for (let i = arr.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [arr[i], arr[j]] = [arr[j], arr[i]];
+          }
+          return arr;
+        }
+
+        // ----- lấy 2 màu riêng biệt từ palette -----
+        function pickTwoDistinctColors() {
+          // sao chép và xáo trộn bảng màu để tránh trùng lặc
+          const shuffled = shuffleArray([...COLOR_PALETTE]);
+          return [shuffled[0], shuffled[1]];
+        }
+
+        // ------------------------------------------------------------
+        // SINH 1 MAP 5x5 chuẩn: connector ở ô interior, đường thẳng dọc + ngang
+        // endpoints: trên-dưới (cột c) ; trái-phải (hàng r)
+        // blocked: toàn bộ ô KHÔNG thuộc hàng r hoặc cột c (16 ô)
+        // ------------------------------------------------------------
+        function generateMap(connectorIndex) {
+          const size = 5;
+          const row = Math.floor(connectorIndex / 5);
+          const col = connectorIndex % 5;
+
+          // --- 4 endpoints cố định theo cấu trúc chữ thập ---
+          const topIdx = col; // (0, col)
+          const bottomIdx = 20 + col; // (4, col)
+          const leftIdx = row * 5; // (row, 0)
+          const rightIdx = row * 5 + 4; // (row, 4)
+
+          // --- chọn hai màu siêu khác biệt ---
+          const [colorA, colorB] = pickTwoDistinctColors();
+
+          // random ghép cặp: dùng colorA cho dọc hay ngang ?
+          const assignVertToA = Math.random() < 0.5;
+          const verticalColor = assignVertToA ? colorA : colorB;
+          const horizontalColor = assignVertToA ? colorB : colorA;
+
+          // --- danh sách endpoints (đủ 4 điểm, đúng cặp màu) ---
+          const endpoints = [
+            { index: topIdx, color: verticalColor },
+            { index: bottomIdx, color: verticalColor },
+            { index: leftIdx, color: horizontalColor },
+            { index: rightIdx, color: horizontalColor },
+          ];
+
+          // --- blocked: toàn bộ ô không thuộc hàng row và cũng không thuộc cột col ---
+          const blocked = [];
+          for (let i = 0; i < 25; i++) {
+            const r = Math.floor(i / 5);
+            const c = i % 5;
+            if (r !== row && c !== col) {
+              blocked.push(i);
+            }
+          }
+          blocked.sort((a, b) => a - b); // sắp xếp tăng dần cho dễ đọc
+
+          // --- connectors: duy nhất 1 ô, là ô trung tâm chữ thập ---
+          const connectors = [connectorIndex];
+
+          return {
+            size: 5,
+            endpoints: endpoints,
+            blocked: blocked,
+            connectors: connectors,
+          };
+        }
+
+        // ------------------------------------------------------------
+        // SINH 20 MAP (đảm bảo full 20, lặp qua interior indices + hoán vị màu)
+        // ------------------------------------------------------------
+        function generate20Maps() {
+          const maps = [];
+
+          // tạo một bản sao của interior và xáo trộn để phân bố ngẫu nhiên
+          let interiorPool = shuffleArray([...INTERIOR_INDICES]);
+
+          for (let i = 0; i < 20; i++) {
+            // lấy theo vòng tròn, đảm bảo đủ 20 (9 ô interior xoay vòng + random màu khác)
+            const idx = interiorPool[i % interiorPool.length];
+            const map = generateMap(idx);
+            maps.push(map);
+          }
+          return maps;
+        }
+
+        // ------------------------------------------------------------
+        // HIỂN THỊ JSON đẹp
+        // ------------------------------------------------------------
+        function displayMaps() {
+          const mapsArray = generate20Maps();
+          const jsonString = JSON.stringify(mapsArray, null, 2);
+          document.getElementById("jsonOutput").textContent = jsonString;
+        }
+
+        // --- gắn sự kiện click ---
+        const btn = document.getElementById("generateBtn");
+        btn.addEventListener("click", (e) => {
+          e.preventDefault();
+          displayMaps();
+        });
+
+        // --- optional: hiển thị 20 map ngay khi load lần đầu (comment nếu không muốn) ---
+        window.addEventListener("load", () => {
+          // có thể tự động sinh luôn, nhưng để button chủ động theo yêu cầu "click vào"
+          // để trống placeholder
+        });
+      })();
+    </script>
+
+    <!-- 
+  MẪU JSON THEO ĐÚNG FORMAT YÊU CẦU 
+  ví dụ: 
+  {
+    size: 5,
+    endpoints: [ { index: 2, color: "#d8d2c2" }, ... ],
+    blocked: [0,1,3,...],
+    connectors: [12]
+  }
+  TẤT CẢ MAP SINH RA ĐỀU ĐẠT:
+  – 2 cặp màu, nối được, không đè đường (chỉ chung nhau tại connector)
+  – không bỏ trống ô nào (16 ô blocked, 9 ô cross dùng hết)
+  – connector ở interior (kế đến ô 6,7,8,11,12,13,16,17,18) 
+  – blocked tối thiểu 16 ô (>2) 
+  – connector cố định, không trùng endpoint
+  – luôn có lời giải (đường dọc + ngang thẳng)
+  – màu sắc ngẫu nhiên, tương phản mạnh
+-->
+  </body>
+</html>

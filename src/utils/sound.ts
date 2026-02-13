@@ -1,6 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { AudioPlayer, createAudioPlayer } from "expo-audio";
-import { Platform, Vibration } from "react-native";
 
 const SOUND_KEY = "SOUND_ENABLED";
 
@@ -119,7 +118,8 @@ export function playWin() {
   try {
     winPlayer.seekTo(0);
     winPlayer.play();
-    Vibration.vibrate(Platform.OS === "android" ? 120 : 80);
+    // Ngắt rung khi chiến thắng
+    // Vibration.vibrate(Platform.OS === "android" ? 120 : 80);
   } catch {}
 }
 

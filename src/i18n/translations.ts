@@ -24,8 +24,7 @@ export const translations = {
       gameDesc:
         "- Game trí tuệ nối màu thách thức\n- Lối chơi gây nghiện, thư giãn\n- Nhiều câu đố đa dạng, thú vị",
       authorTitle: "TÁC GIẢ",
-      authorDesc:
-        "Được phát triển bởi: Color Nexus Studio\ncolornexus@gmail.com",
+      authorDesc: "Được phát triển bởi: Vien BV \nbuivanviencntta@gmail.com",
       follow: "Follow chúng tôi:",
       close: "ĐÓNG",
     },
@@ -98,7 +97,7 @@ export const translations = {
       gameDesc:
         "- A challenging color connection puzzle game\n- Addictive and relaxing gameplay\n- Many diverse and interesting puzzles",
       authorTitle: "AUTHOR",
-      authorDesc: "Developed by: Color Nexus Studio\ncolornexus@gmail.com",
+      authorDesc: "Developed by: Vien BV \nbuivanviencntta@gmail.com",
       follow: "Follow us:",
       close: "CLOSE",
     },

@@ -1,10 +1,5 @@
 import { level3x3 } from "./level_3x3";
-import { level4x4 } from "./level_4x4";
-import { level4x4Block } from "./level_4x4_block";
-import { level5x5 } from "./level_5x5";
 import { level5x5Block } from "./level_5x5_block";
-import { level6x6 } from "./level_6x6";
-import { level6x6Block } from "./level_6x6_block";
 import { LevelData } from "./types";
 
 // Fisher–Yates shuffle
@@ -21,10 +16,5 @@ function shuffleArray<T>(array: T[]): T[] {
 
 export const levels: LevelData[] = [
   ...shuffleArray(level3x3),
-  ...shuffleArray(level4x4),
-  ...shuffleArray(level4x4Block),
-  ...shuffleArray(level5x5),
   ...shuffleArray(level5x5Block),
-  ...shuffleArray(level6x6),
-  ...shuffleArray(level6x6Block),
 ];
