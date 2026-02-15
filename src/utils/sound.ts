@@ -54,21 +54,25 @@ export async function loadSounds() {
   // SFX
   if (!swipePlayer) {
     swipePlayer = createAudioPlayer(require("../../assets/sounds/swipe.mp3"));
+    swipePlayer.volume = 0.1;
   }
 
   if (!connectPlayer) {
     connectPlayer = createAudioPlayer(
       require("../../assets/sounds/connect.mp3"),
     );
+    connectPlayer.volume = 0.2;
   }
 
   if (!winPlayer) {
     winPlayer = createAudioPlayer(require("../../assets/sounds/win.mp3"));
+    winPlayer.volume = 0.8;
   }
 
   // BGM
   if (!bgmPlayer) {
     bgmPlayer = createAudioPlayer(require("../../assets/sounds/bg.mp3"));
+    winPlayer.volume = 0.6;
   }
 
   // Loop BGM bằng playbackStatusUpdate
