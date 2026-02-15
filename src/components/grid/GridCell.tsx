@@ -132,10 +132,10 @@ export default function GridCell({
           source={require("../../../assets/images/connectors.png")}
           style={{
             position: "absolute",
-            width: cellSize * 0.8,
-            height: cellSize * 0.8,
+            width: cellSize,
+            height: cellSize,
             resizeMode: "contain",
-            zIndex: 1,
+            zIndex: 100,
           }}
         />
       )}
