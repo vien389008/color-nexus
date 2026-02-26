@@ -1,7 +1,7 @@
 import { MaterialIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Alert,
   Animated,
@@ -52,32 +52,10 @@ export default function Game() {
 
   /* ================= TIMER ================= */
 
-  useEffect(() => {
-    if (isPaused) {
-      progressAnim.stopAnimation((value) => {
-        remainingTimeRef.current = value * TOTAL_TIME;
-      });
-      return;
-    }
-
-    Animated.timing(progressAnim, {
-      toValue: 0,
-      duration: remainingTimeRef.current,
-      easing: Easing.linear,
-      useNativeDriver: false,
-    }).start(({ finished }) => {
-      if (finished) handleGameOver();
-    });
-
-    return () => {
-      progressAnim.stopAnimation();
-    };
-  }, [isPaused, currentLevelIndex]);
-
-  const resetTimer = () => {
+  const resetTimer = useCallback(() => {
     progressAnim.setValue(1);
     remainingTimeRef.current = TOTAL_TIME;
-  };
+  }, [progressAnim]);
 
   /* ================= WIN ================= */
 
@@ -104,7 +82,7 @@ export default function Game() {
 
   /* ================= GAME OVER ================= */
 
-  const handleGameOver = () => {
+  const handleGameOver = useCallback(() => {
     Alert.alert(t.game.timeUpTitle, t.game.timeUpMessage, [
       {
         text: t.game.playAgain,
@@ -118,7 +96,29 @@ export default function Game() {
         },
       },
     ]);
-  };
+  }, [resetTimer, t.game.playAgain, t.game.timeUpMessage, t.game.timeUpTitle]);
+
+  useEffect(() => {
+    if (isPaused) {
+      progressAnim.stopAnimation((value) => {
+        remainingTimeRef.current = value * TOTAL_TIME;
+      });
+      return;
+    }
+
+    Animated.timing(progressAnim, {
+      toValue: 0,
+      duration: remainingTimeRef.current,
+      easing: Easing.linear,
+      useNativeDriver: false,
+    }).start(({ finished }) => {
+      if (finished) handleGameOver();
+    });
+
+    return () => {
+      progressAnim.stopAnimation();
+    };
+  }, [handleGameOver, isPaused, currentLevelIndex, progressAnim]);
 
   /* ================= RESET ================= */
 

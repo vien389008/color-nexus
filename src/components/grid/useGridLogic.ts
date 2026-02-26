@@ -28,9 +28,12 @@ export const useGridLogic = (
     });
 
     return data;
-  }, [levelData]);
+  }, [blocked, connectors, endpoints, totalCells]);
 
-  const uniqueColors = [...new Set(endpoints.map((e) => e.color))];
+  const uniqueColors = useMemo(
+    () => [...new Set(endpoints.map((e) => e.color))],
+    [endpoints],
+  );
 
   const [activeColor, setActiveColor] = useState<string | null>(null);
   const [currentPath, setCurrentPath] = useState<number[]>([]);
@@ -63,7 +66,7 @@ export const useGridLogic = (
     }
 
     setLockedPaths((prev) => prev.slice(0, -1));
-  }, [undoToken]);
+  }, [undoToken, currentPath.length]);
 
   useEffect(() => {
     if (!hintToken) return;
