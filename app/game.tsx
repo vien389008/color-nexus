@@ -30,6 +30,7 @@ export default function Game() {
     "pause" | "confirmReset" | "completed" | null
   >(null);
   const [gridResetKey, setGridResetKey] = useState(0);
+  const [hintToken, setHintToken] = useState(0);
 
   const isPaused = modalType !== null;
 
@@ -89,6 +90,7 @@ export default function Game() {
     }
 
     if (currentLevelIndex < levels.length - 1) {
+      setHintToken(0);
       resetTimer();
       setCurrentLevelIndex((prev) => prev + 1);
     } else {
@@ -108,6 +110,7 @@ export default function Game() {
           setScore(0);
           setCurrentLevelIndex(0);
           setGridResetKey((prev) => prev + 1);
+          setHintToken(0);
           resetTimer();
         },
       },
@@ -121,6 +124,7 @@ export default function Game() {
     setScore(0);
     setCurrentLevelIndex(0);
     setGridResetKey((prev) => prev + 1);
+    setHintToken(0);
     resetTimer();
   };
 
@@ -131,6 +135,7 @@ export default function Game() {
     setScore(0);
     setCurrentLevelIndex(0);
     setGridResetKey((prev) => prev + 1);
+    setHintToken(0);
     resetTimer();
   };
 
@@ -141,8 +146,14 @@ export default function Game() {
     setScore(0);
     setCurrentLevelIndex(0);
     setGridResetKey(0);
+    setHintToken(0);
     resetTimer();
     router.replace("/");
+  };
+
+  const handleHint = () => {
+    setModalType(null);
+    setHintToken((prev) => prev + 1);
   };
 
   /* ================= UI ================= */
@@ -190,11 +201,16 @@ export default function Game() {
           key={`${currentLevelIndex}-${gridResetKey}`}
           levelData={currentLevel}
           onWin={handleWin}
+          hintToken={hintToken}
         />
       </View>
 
       {/* BUTTONS */}
       <View style={styles.bottomBar}>
+        <TouchableOpacity style={[styles.button, styles.smallButton]} onPress={handleHint}>
+          <Text style={styles.buttonText}>{t.game.hint}</Text>
+        </TouchableOpacity>
+
         <TouchableOpacity
           style={styles.button}
           onPress={() => setModalType("pause")}
