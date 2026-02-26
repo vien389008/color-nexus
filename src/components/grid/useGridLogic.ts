@@ -7,6 +7,8 @@ export const useGridLogic = (
   levelData: LevelData,
   cellSize: number,
   onWin: () => void,
+  undoToken = 0,
+  hintToken = 0,
 ) => {
   const { size, endpoints, blocked = [], connectors = [] } = levelData;
 
@@ -35,14 +37,42 @@ export const useGridLogic = (
   const [lockedPaths, setLockedPaths] = useState<
     { color: string; cells: number[] }[]
   >([]);
-  const [lastTap, setLastTap] = useState<any>(null);
+  const [hintedColor, setHintedColor] = useState<string | null>(null);
 
   useEffect(() => {
     setActiveColor(null);
     setCurrentPath([]);
     setLockedPaths([]);
-    setLastTap(null);
+    setHintedColor(null);
   }, [levelData]);
+
+  useEffect(() => {
+    if (!undoToken) return;
+
+    setHintedColor(null);
+
+    if (currentPath.length > 1) {
+      setCurrentPath((prev) => prev.slice(0, -1));
+      return;
+    }
+
+    if (currentPath.length === 1) {
+      setCurrentPath([]);
+      setActiveColor(null);
+      return;
+    }
+
+    setLockedPaths((prev) => prev.slice(0, -1));
+  }, [undoToken]);
+
+  useEffect(() => {
+    if (!hintToken) return;
+
+    const lockedColors = new Set(lockedPaths.map((p) => p.color));
+    const nextColor = uniqueColors.find((color) => !lockedColors.has(color));
+
+    setHintedColor(nextColor ?? null);
+  }, [hintToken, lockedPaths, uniqueColors]);
 
   const lockedMap = useMemo(() => {
     const map = new Map<number, string>();
@@ -153,6 +183,7 @@ export const useGridLogic = (
     lockedPaths,
     lockedMap,
     connectors,
+    hintedColor,
     handleGesture,
     handleEnd,
   };

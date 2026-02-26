@@ -9,12 +9,13 @@ import { useGridLogic } from "./grid/useGridLogic";
 type Props = {
   levelData: LevelData;
   onWin: () => void;
-  onLose?: () => void;
+  undoToken?: number;
+  hintToken?: number;
 };
 
 const screenWidth = Dimensions.get("window").width;
 
-export default function Grid({ levelData, onWin }: Props) {
+export default function Grid({ levelData, onWin, undoToken = 0, hintToken = 0 }: Props) {
   const { size } = levelData;
 
   /* ===== GRID SIZE CALC (GIỮ NGUYÊN FIX SỐ LẺ) ===== */
@@ -32,13 +33,21 @@ export default function Grid({ levelData, onWin }: Props) {
     activeColor,
     handleGesture,
     handleEnd,
-  } = useGridLogic(levelData, cellSize, onWin);
+    hintedColor,
+  } = useGridLogic(levelData, cellSize, onWin, undoToken, hintToken);
 
   return (
     <PanGestureHandler onGestureEvent={handleGesture} onEnded={handleEnd}>
       <View style={[styles.grid, { width: gridSize, height: gridSize }]}>
         {/* ===== GRID LINES (KHÔNG ĐƯỢC MẤT) ===== */}
         <GridLines size={size} cellSize={cellSize} gridSize={gridSize} />
+
+
+        {hintedColor && (
+          <View style={styles.hintBadge}>
+            <View style={[styles.hintDot, { backgroundColor: hintedColor }]} />
+          </View>
+        )}
 
         {/* ===== CELLS ===== */}
         {gridData.map((cell) => {
@@ -80,5 +89,22 @@ const styles = StyleSheet.create({
     backgroundColor: "#1C1C1C",
     borderRadius: 12,
     overflow: "hidden",
+  },
+  hintBadge: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    zIndex: 300,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: "rgba(255,255,255,0.9)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  hintDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
   },
 });
