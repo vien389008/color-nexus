@@ -82,10 +82,6 @@ export const styles = StyleSheet.create({
     backgroundColor: "#2F80ED",
   },
 
-  hintButtonDisabled: {
-    backgroundColor: "#89A7C7",
-  },
-
   resetButton: {
     backgroundColor: "#FF5C5C",
   },

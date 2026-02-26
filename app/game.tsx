@@ -32,7 +32,6 @@ export default function Game() {
   const [gridResetKey, setGridResetKey] = useState(0);
   const [hintRequestCount, setHintRequestCount] = useState(0);
   const [isHintVisible, setIsHintVisible] = useState(false);
-  const [hasUsedHint, setHasUsedHint] = useState(false);
 
   const isPaused = modalType !== null;
 
@@ -114,7 +113,6 @@ export default function Game() {
           setGridResetKey((prev) => prev + 1);
           setHintRequestCount(0);
           setIsHintVisible(false);
-          setHasUsedHint(false);
           resetTimer();
         },
       },
@@ -130,7 +128,6 @@ export default function Game() {
     setGridResetKey((prev) => prev + 1);
     setHintRequestCount(0);
     setIsHintVisible(false);
-    setHasUsedHint(false);
     resetTimer();
   };
 
@@ -143,7 +140,6 @@ export default function Game() {
     setGridResetKey((prev) => prev + 1);
     setHintRequestCount(0);
     setIsHintVisible(false);
-    setHasUsedHint(false);
     resetTimer();
   };
 
@@ -156,7 +152,6 @@ export default function Game() {
     setGridResetKey(0);
     setHintRequestCount(0);
     setIsHintVisible(false);
-    setHasUsedHint(false);
     resetTimer();
     router.replace("/");
   };
@@ -221,17 +216,8 @@ export default function Game() {
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[
-            styles.button,
-            styles.hintButton,
-            isHintVisible && styles.hintButtonActive,
-            hasUsedHint && styles.hintButtonDisabled,
-          ]}
-          disabled={hasUsedHint}
-          onPress={() => {
-            setHintRequestCount((prev) => prev + 1);
-            setHasUsedHint(true);
-          }}
+          style={[styles.button, styles.hintButton, isHintVisible && styles.hintButtonActive]}
+          onPress={() => setHintRequestCount((prev) => prev + 1)}
         >
           <Text style={styles.buttonText}>{t.game.hint}</Text>
         </TouchableOpacity>

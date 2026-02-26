@@ -94,7 +94,7 @@ export default function Grid({
               pathCells={inHintPath ? (hintPath?.cells ?? pathCells) : pathCells}
               size={size}
               showHint={inHintPath}
-              hintOpacity={hintVisible ? 0.45 : 0.12}
+              hintOpacity={hintVisible ? 1 : 0.2}
             />
           );
         })}
