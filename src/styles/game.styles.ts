@@ -74,6 +74,18 @@ export const styles = StyleSheet.create({
     borderRadius: 25,
   },
 
+  hintButton: {
+    backgroundColor: "#4A90E2",
+  },
+
+  hintButtonActive: {
+    backgroundColor: "#2F80ED",
+  },
+
+  hintButtonDisabled: {
+    backgroundColor: "#89A7C7",
+  },
+
   resetButton: {
     backgroundColor: "#FF5C5C",
   },

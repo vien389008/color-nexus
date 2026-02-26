@@ -1,7 +1,7 @@
 import { MaterialIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Alert,
   Animated,
@@ -30,6 +30,9 @@ export default function Game() {
     "pause" | "confirmReset" | "completed" | null
   >(null);
   const [gridResetKey, setGridResetKey] = useState(0);
+  const [hintRequestCount, setHintRequestCount] = useState(0);
+  const [isHintVisible, setIsHintVisible] = useState(false);
+  const [hasUsedHint, setHasUsedHint] = useState(false);
 
   const isPaused = modalType !== null;
 
@@ -70,12 +73,12 @@ export default function Game() {
     return () => {
       progressAnim.stopAnimation();
     };
-  }, [isPaused, currentLevelIndex]);
+  }, [currentLevelIndex, handleGameOver, isPaused, progressAnim]);
 
-  const resetTimer = () => {
+  const resetTimer = useCallback(() => {
     progressAnim.setValue(1);
     remainingTimeRef.current = TOTAL_TIME;
-  };
+  }, [progressAnim]);
 
   /* ================= WIN ================= */
 
@@ -91,6 +94,7 @@ export default function Game() {
     if (currentLevelIndex < levels.length - 1) {
       resetTimer();
       setCurrentLevelIndex((prev) => prev + 1);
+      setIsHintVisible(false);
     } else {
       // Hoàn thành tất cả màn
       progressAnim.stopAnimation();
@@ -100,7 +104,7 @@ export default function Game() {
 
   /* ================= GAME OVER ================= */
 
-  const handleGameOver = () => {
+  const handleGameOver = useCallback(() => {
     Alert.alert(t.game.timeUpTitle, t.game.timeUpMessage, [
       {
         text: t.game.playAgain,
@@ -108,11 +112,14 @@ export default function Game() {
           setScore(0);
           setCurrentLevelIndex(0);
           setGridResetKey((prev) => prev + 1);
+          setHintRequestCount(0);
+          setIsHintVisible(false);
+          setHasUsedHint(false);
           resetTimer();
         },
       },
     ]);
-  };
+  }, [resetTimer, t.game.playAgain, t.game.timeUpMessage, t.game.timeUpTitle]);
 
   /* ================= RESET ================= */
 
@@ -121,6 +128,9 @@ export default function Game() {
     setScore(0);
     setCurrentLevelIndex(0);
     setGridResetKey((prev) => prev + 1);
+    setHintRequestCount(0);
+    setIsHintVisible(false);
+    setHasUsedHint(false);
     resetTimer();
   };
 
@@ -131,6 +141,9 @@ export default function Game() {
     setScore(0);
     setCurrentLevelIndex(0);
     setGridResetKey((prev) => prev + 1);
+    setHintRequestCount(0);
+    setIsHintVisible(false);
+    setHasUsedHint(false);
     resetTimer();
   };
 
@@ -141,6 +154,9 @@ export default function Game() {
     setScore(0);
     setCurrentLevelIndex(0);
     setGridResetKey(0);
+    setHintRequestCount(0);
+    setIsHintVisible(false);
+    setHasUsedHint(false);
     resetTimer();
     router.replace("/");
   };
@@ -190,6 +206,8 @@ export default function Game() {
           key={`${currentLevelIndex}-${gridResetKey}`}
           levelData={currentLevel}
           onWin={handleWin}
+          hintRequestCount={hintRequestCount}
+          onHintStateChange={setIsHintVisible}
         />
       </View>
 
@@ -200,6 +218,22 @@ export default function Game() {
           onPress={() => setModalType("pause")}
         >
           <Text style={styles.buttonText}>{t.game.pause}</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[
+            styles.button,
+            styles.hintButton,
+            isHintVisible && styles.hintButtonActive,
+            hasUsedHint && styles.hintButtonDisabled,
+          ]}
+          disabled={hasUsedHint}
+          onPress={() => {
+            setHintRequestCount((prev) => prev + 1);
+            setHasUsedHint(true);
+          }}
+        >
+          <Text style={styles.buttonText}>{t.game.hint}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
