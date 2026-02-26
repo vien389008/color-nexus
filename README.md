@@ -1,50 +1,142 @@
-# Welcome to your Expo app 👋
+# Color Nexus
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Color Nexus là game nối màu được xây dựng bằng **React Native + Expo Router**.
+Mục tiêu của người chơi là nối các cặp điểm cùng màu, lấp đầy toàn bộ bàn chơi hợp lệ và hoàn thành chuỗi level trong giới hạn thời gian.
 
-## Get started
+## Tính năng chính
 
-1. Install dependencies
+- Nối các cặp điểm cùng màu theo cơ chế kéo (gesture).
+- Nhiều nhóm level theo kích thước và độ khó: `3x3` → `6x6`, có biến thể block.
+- Hệ thống tính điểm, high score và timer theo phiên chơi.
+- Đa ngôn ngữ Việt/Anh (i18n).
+- Âm thanh game (SFX + BGM), có thể bật/tắt trong Settings.
+- Các màn hình phụ: How to Play, Info, Privacy, Settings.
 
-   ```bash
-   npm install
-   ```
+## Công nghệ sử dụng
 
-2. Start the app
+- **Expo SDK 54**
+- **React Native 0.81**
+- **Expo Router** (file-based routing)
+- **TypeScript**
+- **react-native-gesture-handler** (xử lý vuốt/kéo trong grid)
+- **AsyncStorage** (lưu high score, sound setting)
 
-   ```bash
-   npx expo start
-   ```
+## Cấu trúc thư mục
 
-In the output, you'll find options to open the app in a
+```text
+app/
+  _layout.tsx       # Root layout, providers, stack navigation
+  index.tsx         # Home screen
+  game.tsx          # Gameplay screen
+  settings.tsx      # Cài đặt
+  how-to-play.tsx   # Hướng dẫn chơi
+  info.tsx          # Thông tin app
+  privacy.tsx       # Chính sách bảo mật
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
-
-```bash
-npm run reset-project
+src/
+  components/
+    Grid.tsx
+    grid/
+      useGridLogic.ts   # Core gameplay logic cho grid
+      GridCell.tsx
+      GridLines.tsx
+      gridHelpers.ts
+  levels/
+    levels.ts           # Tập hợp level + shuffle
+    level_*.ts          # Dữ liệu level theo kích thước/biến thể
+    types.ts
+  i18n/
+    I18nContext.tsx
+    translations.ts
+  utils/
+    sound.ts            # Load/play/unload sound, sound setting
+  styles/
+    *.styles.ts
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+## Luồng gameplay chính
 
-## Learn more
+1. Người chơi vào `app/game.tsx`.
+2. Màn chơi hiện tại lấy từ `src/levels/levels.ts`.
+3. Grid render từ `src/components/Grid.tsx`.
+4. Tương tác kéo/vuốt được xử lý bởi `useGridLogic`:
+   - Bắt đầu đường nối từ endpoint.
+   - Chỉ cho phép đi ô kề hợp lệ.
+   - Kiểm tra điều kiện hoàn thành level (đủ màu, phủ ô chơi hợp lệ, xử lý connector nếu có).
+5. Khi thắng level:
+   - Tăng điểm.
+   - Cập nhật high score nếu cần.
+   - Chuyển sang level kế tiếp hoặc hiển thị completed modal.
 
-To learn more about developing your project with Expo, look at the following resources:
+## Cài đặt & chạy dự án
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+### 1) Cài dependencies
 
-## Join the community
+```bash
+npm install
+```
 
-Join our community of developers creating universal apps.
+### 2) Chạy app
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+```bash
+npm run start
+```
+
+### 3) Chạy theo nền tảng
+
+```bash
+npm run android
+npm run ios
+npm run web
+```
+
+### 4) Lint
+
+```bash
+npm run lint
+```
+
+## Cách thêm level mới
+
+1. Mở file level tương ứng trong `src/levels/` (ví dụ `level_5x5.ts`).
+2. Thêm một object `LevelData` mới:
+   - `size`: kích thước bàn.
+   - `endpoints`: danh sách điểm đầu/cuối theo `index` + `color`.
+   - `blocked` (optional): ô bị chặn.
+   - `connectors` (optional): ô connector cần đi qua theo rule hiện tại.
+3. Đảm bảo file `src/levels/levels.ts` đã import và spread mảng level đó.
+4. Chạy app để test bằng tay level mới.
+
+## i18n (Việt/Anh)
+
+- Nội dung text nằm tại `src/i18n/translations.ts`.
+- Context và state ngôn ngữ nằm tại `src/i18n/I18nContext.tsx`.
+- UI dùng hook `useI18n()` để đọc `t.<namespace>.<key>`.
+
+## Âm thanh
+
+- Sound system nằm tại `src/utils/sound.ts`.
+- Sound được khởi tạo trong `SoundProvider` (`app/_layout.tsx`).
+- Có các hàm chính:
+  - `loadSounds`, `unloadSounds`
+  - `playSwipe`, `playConnect`, `playWin`
+  - `setSoundEnabled`, `isSoundEnabled`
+
+## Scripts có sẵn
+
+- `npm run start` – chạy Expo dev server.
+- `npm run android` – mở Android target.
+- `npm run ios` – mở iOS target.
+- `npm run web` – chạy bản web.
+- `npm run lint` – kiểm tra lint theo cấu hình Expo ESLint.
+
+## Gợi ý roadmap cải tiến
+
+- Persist language setting bằng AsyncStorage.
+- Thêm unit test cho core logic trong `useGridLogic`.
+- Hoàn thiện CTA chưa có hành động thực tế (Rate app, social links).
+- Cải thiện analytics gameplay (thời gian hoàn thành level, tỉ lệ retry).
+
+---
+
+Nếu bạn muốn, mình có thể viết tiếp một bản **CONTRIBUTING.md** ngắn cho quy trình thêm level và quy ước màu/index để team làm nội dung nhanh hơn.
