@@ -1,7 +1,7 @@
 import { MaterialIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Alert,
   Animated,
@@ -50,6 +50,34 @@ export default function Game() {
     loadHighScore();
   }, []);
 
+  const resetTimer = useCallback(() => {
+    progressAnim.setValue(1);
+    remainingTimeRef.current = TOTAL_TIME;
+  }, [progressAnim]);
+
+  /* ================= GAME OVER ================= */
+
+  const handleGameOver = useCallback(() => {
+    Alert.alert(t.game.timeUpTitle, t.game.timeUpMessage, [
+      {
+        text: t.game.playAgain,
+        onPress: () => {
+          setScore(0);
+          setCurrentLevelIndex(0);
+          setGridResetKey((prev) => prev + 1);
+          setUndoToken(0);
+          setHintToken(0);
+          resetTimer();
+        },
+      },
+    ]);
+  }, [
+    resetTimer,
+    t.game.playAgain,
+    t.game.timeUpMessage,
+    t.game.timeUpTitle,
+  ]);
+
   /* ================= TIMER ================= */
 
   useEffect(() => {
@@ -72,12 +100,7 @@ export default function Game() {
     return () => {
       progressAnim.stopAnimation();
     };
-  }, [isPaused, currentLevelIndex]);
-
-  const resetTimer = () => {
-    progressAnim.setValue(1);
-    remainingTimeRef.current = TOTAL_TIME;
-  };
+  }, [currentLevelIndex, handleGameOver, isPaused, progressAnim]);
 
   /* ================= WIN ================= */
 
@@ -100,24 +123,6 @@ export default function Game() {
       progressAnim.stopAnimation();
       setModalType("completed");
     }
-  };
-
-  /* ================= GAME OVER ================= */
-
-  const handleGameOver = () => {
-    Alert.alert(t.game.timeUpTitle, t.game.timeUpMessage, [
-      {
-        text: t.game.playAgain,
-        onPress: () => {
-          setScore(0);
-          setCurrentLevelIndex(0);
-          setGridResetKey((prev) => prev + 1);
-          setUndoToken(0);
-          setHintToken(0);
-          resetTimer();
-        },
-      },
-    ]);
   };
 
   /* ================= RESET ================= */
