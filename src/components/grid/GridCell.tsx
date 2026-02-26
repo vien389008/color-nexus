@@ -8,6 +8,8 @@ type Props = {
   color: string;
   pathCells: number[];
   size: number;
+  showHint?: boolean;
+  hintOpacity?: number;
 };
 
 export default function GridCell({
@@ -17,6 +19,8 @@ export default function GridCell({
   color,
   pathCells,
   size,
+  showHint = false,
+  hintOpacity = 1,
 }: Props) {
   const indexInPath = pathCells.indexOf(cell.id);
   const prev = indexInPath > 0 ? pathCells[indexInPath - 1] : null;
@@ -30,6 +34,8 @@ export default function GridCell({
   const connectLeft = prev === cell.id - 1 || next === cell.id - 1;
   const connectRight = prev === cell.id + 1 || next === cell.id + 1;
 
+  const hintColor = showHint ? color : "transparent";
+
   return (
     <View
       style={{
@@ -39,7 +45,6 @@ export default function GridCell({
         alignItems: "center",
       }}
     >
-      {/* BLOCKED IMAGE */}
       {cell.blocked && (
         <Image
           source={require("../../../assets/images/block.png")}
@@ -53,10 +58,8 @@ export default function GridCell({
         />
       )}
 
-      {/* PIPE */}
       {indexInPath !== -1 && (
         <>
-          {/* CENTER DOT */}
           <View
             style={{
               position: "absolute",
@@ -68,7 +71,6 @@ export default function GridCell({
             }}
           />
 
-          {/* TOP */}
           {connectTop && (
             <View
               style={{
@@ -82,7 +84,6 @@ export default function GridCell({
             />
           )}
 
-          {/* BOTTOM */}
           {connectBottom && (
             <View
               style={{
@@ -96,7 +97,6 @@ export default function GridCell({
             />
           )}
 
-          {/* LEFT */}
           {connectLeft && (
             <View
               style={{
@@ -110,7 +110,6 @@ export default function GridCell({
             />
           )}
 
-          {/* RIGHT */}
           {connectRight && (
             <View
               style={{
@@ -126,7 +125,78 @@ export default function GridCell({
         </>
       )}
 
-      {/* CONNECTOR IMAGE */}
+      {showHint && indexInPath !== -1 && (
+        <>
+          <View
+            style={{
+              position: "absolute",
+              width: pipeWidth,
+              height: pipeWidth,
+              borderRadius: pipeWidth / 2,
+              backgroundColor: hintColor,
+              opacity: hintOpacity,
+              zIndex: 15,
+            }}
+          />
+
+          {connectTop && (
+            <View
+              style={{
+                position: "absolute",
+                width: pipeWidth,
+                height: cellSize / 2,
+                backgroundColor: hintColor,
+                opacity: hintOpacity,
+                top: 0,
+                zIndex: 14,
+              }}
+            />
+          )}
+
+          {connectBottom && (
+            <View
+              style={{
+                position: "absolute",
+                width: pipeWidth,
+                height: cellSize / 2,
+                backgroundColor: hintColor,
+                opacity: hintOpacity,
+                bottom: 0,
+                zIndex: 14,
+              }}
+            />
+          )}
+
+          {connectLeft && (
+            <View
+              style={{
+                position: "absolute",
+                height: pipeWidth,
+                width: cellSize / 2,
+                backgroundColor: hintColor,
+                opacity: hintOpacity,
+                left: 0,
+                zIndex: 14,
+              }}
+            />
+          )}
+
+          {connectRight && (
+            <View
+              style={{
+                position: "absolute",
+                height: pipeWidth,
+                width: cellSize / 2,
+                backgroundColor: hintColor,
+                opacity: hintOpacity,
+                right: 0,
+                zIndex: 14,
+              }}
+            />
+          )}
+        </>
+      )}
+
       {cell.connector && (
         <Image
           source={require("../../../assets/images/connectors.png")}
@@ -140,7 +210,6 @@ export default function GridCell({
         />
       )}
 
-      {/* ENDPOINT */}
       {cell.color && !cell.blocked && (
         <View
           style={{
