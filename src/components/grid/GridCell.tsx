@@ -8,17 +8,34 @@ type Props = {
   color: string;
   pathCells: number[];
   size: number;
+  hintColor: string | null;
+  hintPathCells: number[];
+  hintVisible: boolean;
 };
 
-export default function GridCell({
+const PipeLayer = ({
+  indexInPath,
   cell,
+  pathCells,
+  size,
   cellSize,
   pipeWidth,
   color,
-  pathCells,
-  size,
-}: Props) {
-  const indexInPath = pathCells.indexOf(cell.id);
+  zIndex,
+  opacity,
+}: {
+  indexInPath: number;
+  cell: any;
+  pathCells: number[];
+  size: number;
+  cellSize: number;
+  pipeWidth: number;
+  color: string;
+  zIndex: number;
+  opacity?: number;
+}) => {
+  if (indexInPath === -1) return null;
+
   const prev = indexInPath > 0 ? pathCells[indexInPath - 1] : null;
   const next =
     indexInPath !== -1 && indexInPath < pathCells.length - 1
@@ -31,6 +48,93 @@ export default function GridCell({
   const connectRight = prev === cell.id + 1 || next === cell.id + 1;
 
   return (
+    <>
+      <View
+        style={{
+          position: "absolute",
+          width: pipeWidth,
+          height: pipeWidth,
+          borderRadius: pipeWidth / 2,
+          backgroundColor: color,
+          zIndex,
+          opacity,
+        }}
+      />
+
+      {connectTop && (
+        <View
+          style={{
+            position: "absolute",
+            width: pipeWidth,
+            height: cellSize / 2,
+            backgroundColor: color,
+            top: 0,
+            zIndex,
+            opacity,
+          }}
+        />
+      )}
+
+      {connectBottom && (
+        <View
+          style={{
+            position: "absolute",
+            width: pipeWidth,
+            height: cellSize / 2,
+            backgroundColor: color,
+            bottom: 0,
+            zIndex,
+            opacity,
+          }}
+        />
+      )}
+
+      {connectLeft && (
+        <View
+          style={{
+            position: "absolute",
+            height: pipeWidth,
+            width: cellSize / 2,
+            backgroundColor: color,
+            left: 0,
+            zIndex,
+            opacity,
+          }}
+        />
+      )}
+
+      {connectRight && (
+        <View
+          style={{
+            position: "absolute",
+            height: pipeWidth,
+            width: cellSize / 2,
+            backgroundColor: color,
+            right: 0,
+            zIndex,
+            opacity,
+          }}
+        />
+      )}
+    </>
+  );
+};
+
+export default function GridCell({
+  cell,
+  cellSize,
+  pipeWidth,
+  color,
+  pathCells,
+  size,
+  hintColor,
+  hintPathCells,
+  hintVisible,
+}: Props) {
+  const indexInPath = pathCells.indexOf(cell.id);
+  const indexInHintPath = hintPathCells.indexOf(cell.id);
+
+  return (
     <View
       style={{
         width: cellSize,
@@ -39,7 +143,6 @@ export default function GridCell({
         alignItems: "center",
       }}
     >
-      {/* BLOCKED IMAGE */}
       {cell.blocked && (
         <Image
           source={require("../../../assets/images/block.png")}
@@ -53,80 +156,31 @@ export default function GridCell({
         />
       )}
 
-      {/* PIPE */}
-      {indexInPath !== -1 && (
-        <>
-          {/* CENTER DOT */}
-          <View
-            style={{
-              position: "absolute",
-              width: pipeWidth,
-              height: pipeWidth,
-              borderRadius: pipeWidth / 2,
-              backgroundColor: color,
-              zIndex: 10,
-            }}
-          />
-
-          {/* TOP */}
-          {connectTop && (
-            <View
-              style={{
-                position: "absolute",
-                width: pipeWidth,
-                height: cellSize / 2,
-                backgroundColor: color,
-                top: 0,
-                zIndex: 9,
-              }}
-            />
-          )}
-
-          {/* BOTTOM */}
-          {connectBottom && (
-            <View
-              style={{
-                position: "absolute",
-                width: pipeWidth,
-                height: cellSize / 2,
-                backgroundColor: color,
-                bottom: 0,
-                zIndex: 9,
-              }}
-            />
-          )}
-
-          {/* LEFT */}
-          {connectLeft && (
-            <View
-              style={{
-                position: "absolute",
-                height: pipeWidth,
-                width: cellSize / 2,
-                backgroundColor: color,
-                left: 0,
-                zIndex: 9,
-              }}
-            />
-          )}
-
-          {/* RIGHT */}
-          {connectRight && (
-            <View
-              style={{
-                position: "absolute",
-                height: pipeWidth,
-                width: cellSize / 2,
-                backgroundColor: color,
-                right: 0,
-                zIndex: 9,
-              }}
-            />
-          )}
-        </>
+      {hintColor && hintVisible && (
+        <PipeLayer
+          indexInPath={indexInHintPath}
+          cell={cell}
+          pathCells={hintPathCells}
+          size={size}
+          cellSize={cellSize}
+          pipeWidth={pipeWidth}
+          color={hintColor}
+          zIndex={7}
+          opacity={0.45}
+        />
       )}
 
-      {/* CONNECTOR IMAGE */}
+      <PipeLayer
+        indexInPath={indexInPath}
+        cell={cell}
+        pathCells={pathCells}
+        size={size}
+        cellSize={cellSize}
+        pipeWidth={pipeWidth}
+        color={color}
+        zIndex={10}
+      />
+
       {cell.connector && (
         <Image
           source={require("../../../assets/images/connectors.png")}
@@ -140,7 +194,6 @@ export default function GridCell({
         />
       )}
 
-      {/* ENDPOINT */}
       {cell.color && !cell.blocked && (
         <View
           style={{

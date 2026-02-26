@@ -15,16 +15,19 @@ type Props = {
 
 const screenWidth = Dimensions.get("window").width;
 
-export default function Grid({ levelData, onWin, undoToken = 0, hintToken = 0 }: Props) {
+export default function Grid({
+  levelData,
+  onWin,
+  undoToken = 0,
+  hintToken = 0,
+}: Props) {
   const { size } = levelData;
 
-  /* ===== GRID SIZE CALC (GIỮ NGUYÊN FIX SỐ LẺ) ===== */
   const rawGridSize = screenWidth * 0.9;
   const cellSize = Math.floor(rawGridSize / size);
   const gridSize = cellSize * size;
   const pipeWidth = cellSize * 0.5;
 
-  /* ===== LOGIC ===== */
   const {
     gridData,
     currentPath,
@@ -34,22 +37,18 @@ export default function Grid({ levelData, onWin, undoToken = 0, hintToken = 0 }:
     handleGesture,
     handleEnd,
     hintedColor,
+    hintPath,
+    hintProgress,
+    hintVisible,
   } = useGridLogic(levelData, cellSize, onWin, undoToken, hintToken);
+
+  const visibleHintPath = hintPath.slice(0, hintProgress);
 
   return (
     <PanGestureHandler onGestureEvent={handleGesture} onEnded={handleEnd}>
       <View style={[styles.grid, { width: gridSize, height: gridSize }]}>
-        {/* ===== GRID LINES (KHÔNG ĐƯỢC MẤT) ===== */}
         <GridLines size={size} cellSize={cellSize} gridSize={gridSize} />
 
-
-        {hintedColor && (
-          <View style={styles.hintBadge}>
-            <View style={[styles.hintDot, { backgroundColor: hintedColor }]} />
-          </View>
-        )}
-
-        {/* ===== CELLS ===== */}
         {gridData.map((cell) => {
           let pathCells: number[] = [];
 
@@ -74,6 +73,9 @@ export default function Grid({ levelData, onWin, undoToken = 0, hintToken = 0 }:
               color={color}
               pathCells={pathCells}
               size={size}
+              hintColor={hintedColor}
+              hintPathCells={visibleHintPath}
+              hintVisible={hintVisible}
             />
           );
         })}
@@ -89,22 +91,5 @@ const styles = StyleSheet.create({
     backgroundColor: "#1C1C1C",
     borderRadius: 12,
     overflow: "hidden",
-  },
-  hintBadge: {
-    position: "absolute",
-    top: 8,
-    right: 8,
-    zIndex: 300,
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: "rgba(255,255,255,0.9)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  hintDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
   },
 });
