@@ -65,13 +65,19 @@ export const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-evenly",
     paddingVertical: 20,
+    paddingHorizontal: 8,
+    gap: 8,
   },
 
   button: {
     backgroundColor: "#6C63FF",
     paddingVertical: 12,
-    paddingHorizontal: 30,
+    paddingHorizontal: 18,
     borderRadius: 25,
+  },
+
+  smallButton: {
+    paddingHorizontal: 14,
   },
 
   resetButton: {

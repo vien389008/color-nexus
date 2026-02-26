@@ -3,10 +3,13 @@ import { LevelData } from "../../levels/types";
 import { playConnect, playSwipe, playWin } from "../../utils/sound";
 import { getCellFromTouch, isAdjacent } from "./gridHelpers";
 
+const HINT_DURATION_MS = 1200;
+
 export const useGridLogic = (
   levelData: LevelData,
   cellSize: number,
   onWin: () => void,
+  hintToken = 0,
 ) => {
   const { size, endpoints, blocked = [], connectors = [] } = levelData;
 
@@ -26,23 +29,95 @@ export const useGridLogic = (
     });
 
     return data;
-  }, [levelData]);
+  }, [blocked, connectors, endpoints, totalCells]);
 
-  const uniqueColors = [...new Set(endpoints.map((e) => e.color))];
+  const uniqueColors = useMemo(
+    () => [...new Set(endpoints.map((e) => e.color))],
+    [endpoints],
+  );
 
   const [activeColor, setActiveColor] = useState<string | null>(null);
   const [currentPath, setCurrentPath] = useState<number[]>([]);
   const [lockedPaths, setLockedPaths] = useState<
     { color: string; cells: number[] }[]
   >([]);
-  const [lastTap, setLastTap] = useState<any>(null);
+  const [hintedColor, setHintedColor] = useState<string | null>(null);
+  const [hintPath, setHintPath] = useState<number[]>([]);
 
   useEffect(() => {
     setActiveColor(null);
     setCurrentPath([]);
     setLockedPaths([]);
-    setLastTap(null);
+    setHintedColor(null);
+    setHintPath([]);
   }, [levelData]);
+
+  useEffect(() => {
+    if (!hintToken) return;
+
+    const lockedColors = new Set(lockedPaths.map((p) => p.color));
+    const nextColor = uniqueColors.find((color) => !lockedColors.has(color));
+
+    if (!nextColor) {
+      setHintedColor(null);
+      setHintPath([]);
+      return;
+    }
+
+    const colorEndpoints = endpoints
+      .filter((p) => p.color === nextColor)
+      .map((p) => p.index);
+
+    if (colorEndpoints.length < 2) {
+      setHintedColor(nextColor);
+      setHintPath([]);
+      return;
+    }
+
+    const [start, target] = colorEndpoints;
+    const occupiedSet = new Set(lockedPaths.flatMap((p) => p.cells));
+
+    const neighbors = [start - size, start + size, start - 1, start + 1].filter(
+      (index) => {
+        if (index < 0 || index >= totalCells) return false;
+        if (!isAdjacent(start, index, size)) return false;
+        if (blocked.includes(index)) return false;
+        if (occupiedSet.has(index)) return false;
+        return true;
+      },
+    );
+
+    const distance = (from: number, to: number) => {
+      const fr = Math.floor(from / size);
+      const fc = from % size;
+      const tr = Math.floor(to / size);
+      const tc = to % size;
+      return Math.abs(fr - tr) + Math.abs(fc - tc);
+    };
+
+    const bestNeighbor =
+      neighbors
+        .slice()
+        .sort((a, b) => distance(a, target) - distance(b, target))[0] ?? null;
+
+    setHintedColor(nextColor);
+    setHintPath(bestNeighbor === null ? [start] : [start, bestNeighbor]);
+
+    const timer = setTimeout(() => {
+      setHintedColor(null);
+      setHintPath([]);
+    }, HINT_DURATION_MS);
+
+    return () => clearTimeout(timer);
+  }, [
+    blocked,
+    endpoints,
+    hintToken,
+    lockedPaths,
+    size,
+    totalCells,
+    uniqueColors,
+  ]);
 
   const lockedMap = useMemo(() => {
     const map = new Map<number, string>();
@@ -78,6 +153,8 @@ export const useGridLogic = (
         setLockedPaths((prev) => prev.filter((p) => p.color !== cell.color));
         setActiveColor(cell.color);
         setCurrentPath([index]);
+        setHintedColor(null);
+        setHintPath([]);
         playSwipe();
       }
       return;
@@ -122,14 +199,10 @@ export const useGridLogic = (
         const filled = newLocked.flatMap((p) => p.cells);
         const uniqueFilled = [...new Set(filled)];
 
-        // ✅ kiểm tra lấp đầy tất cả playable cells (không tính connector)
-        const validFilled = uniqueFilled.filter(
-          (id) => !connectors.includes(id),
-        );
+        const validFilled = uniqueFilled.filter((id) => !connectors.includes(id));
 
         const allPlayableFilled = validFilled.length === playableCells;
 
-        // ✅ kiểm tra tất cả connector đã được đi qua ít nhất 1 lần
         const allConnectorsUsed = connectors.every((connectorId) =>
           uniqueFilled.includes(connectorId),
         );
@@ -153,6 +226,8 @@ export const useGridLogic = (
     lockedPaths,
     lockedMap,
     connectors,
+    hintedColor,
+    hintPath,
     handleGesture,
     handleEnd,
   };

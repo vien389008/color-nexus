@@ -69,6 +69,7 @@ export const translations = {
       timeUpTitle: "Hết giờ!",
       timeUpMessage: "Bạn thua rồi 😢",
       playAgain: "Chơi lại",
+      hint: "Gợi ý",
     },
   },
 
@@ -142,6 +143,7 @@ export const translations = {
       timeUpTitle: "Time's Up!",
       timeUpMessage: "You lost 😢",
       playAgain: "Play Again",
+      hint: "Hint",
     },
   },
 };
