@@ -1,7 +1,12 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { LevelData } from "../../levels/types";
 import { playConnect, playSwipe, playWin } from "../../utils/sound";
-import { getCellFromTouch, isAdjacent } from "./gridHelpers";
+import { findShortestPath, getCellFromTouch, isAdjacent } from "./gridHelpers";
+
+const EMPTY_PATH: number[] = [];
+
+type LockedPath = { color: string; cells: number[] };
+type HintPath = { color: string; cells: number[] } | null;
 
 export const useGridLogic = (
   levelData: LevelData,
@@ -26,44 +31,112 @@ export const useGridLogic = (
     });
 
     return data;
-  }, [levelData]);
+  }, [blocked, connectors, endpoints, totalCells]);
 
-  const uniqueColors = [...new Set(endpoints.map((e) => e.color))];
+  const endpointMap = useMemo(() => {
+    const map = new Map<string, number[]>();
+
+    endpoints.forEach((endpoint) => {
+      const indexes = map.get(endpoint.color) ?? [];
+      map.set(endpoint.color, [...indexes, endpoint.index]);
+    });
+
+    return map;
+  }, [endpoints]);
+
+  const uniqueColors = useMemo(
+    () => [...new Set(endpoints.map((e) => e.color))],
+    [endpoints],
+  );
 
   const [activeColor, setActiveColor] = useState<string | null>(null);
   const [currentPath, setCurrentPath] = useState<number[]>([]);
-  const [lockedPaths, setLockedPaths] = useState<
-    { color: string; cells: number[] }[]
-  >([]);
-  const [lastTap, setLastTap] = useState<any>(null);
+  const [lockedPaths, setLockedPaths] = useState<LockedPath[]>([]);
+  const [hintPath, setHintPath] = useState<HintPath>(null);
 
   useEffect(() => {
     setActiveColor(null);
-    setCurrentPath([]);
+    setCurrentPath(EMPTY_PATH);
     setLockedPaths([]);
-    setLastTap(null);
+    setHintPath(null);
   }, [levelData]);
 
   const lockedMap = useMemo(() => {
     const map = new Map<number, string>();
-    lockedPaths.forEach((p) => {
-      p.cells.forEach((c) => map.set(c, p.color));
+
+    lockedPaths.forEach((path) => {
+      path.cells.forEach((cell) => map.set(cell, path.color));
     });
+
     return map;
   }, [lockedPaths]);
 
-  const isCellOccupied = (id: number) => {
+  const isCellOccupied = (id: number, movingColor: string | null = activeColor) => {
     if (gridData[id].connector) return false;
 
     const occupiedColor = lockedMap.get(id);
 
-    if (occupiedColor && occupiedColor !== activeColor) {
-      setLockedPaths((prev) => prev.filter((p) => p.color !== occupiedColor));
+    if (occupiedColor && occupiedColor !== movingColor) {
+      setLockedPaths((prev) => prev.filter((path) => path.color !== occupiedColor));
       return false;
     }
 
     return occupiedColor !== undefined;
   };
+
+  const isBoardSolved = (paths: LockedPath[]) => {
+    if (paths.length !== uniqueColors.length) return false;
+
+    const filled = paths.flatMap((path) => path.cells);
+    const uniqueFilled = [...new Set(filled)];
+
+    const validFilled = uniqueFilled.filter((id) => !connectors.includes(id));
+    const allPlayableFilled = validFilled.length === playableCells;
+
+    const allConnectorsUsed = connectors.every((connectorId) =>
+      uniqueFilled.includes(connectorId),
+    );
+
+    return allPlayableFilled && allConnectorsUsed;
+  };
+
+  const computeHintPath = useCallback(() => {
+    const lockedColorSet = new Set(lockedPaths.map((path) => path.color));
+    const hintColor = uniqueColors.find((color) => !lockedColorSet.has(color));
+
+    if (!hintColor) {
+      setHintPath(null);
+      return;
+    }
+
+    const endpointsForColor = endpointMap.get(hintColor);
+    if (!endpointsForColor || endpointsForColor.length < 2) {
+      setHintPath(null);
+      return;
+    }
+
+    const [start, target] = endpointsForColor;
+    const blockedByOtherColors = new Set<number>();
+
+    lockedPaths.forEach((path) => {
+      if (path.color !== hintColor) {
+        path.cells.forEach((cellId) => blockedByOtherColors.add(cellId));
+      }
+    });
+
+    const path = findShortestPath(start, target, size, (cellId) => {
+      if (gridData[cellId].blocked) return false;
+      if (blockedByOtherColors.has(cellId)) return false;
+      return true;
+    });
+
+    if (!path || path.length < 2) {
+      setHintPath(null);
+      return;
+    }
+
+    setHintPath({ color: hintColor, cells: path });
+  }, [endpointMap, gridData, lockedPaths, size, uniqueColors]);
 
   const handleGesture = (event: any) => {
     const { x, y } = event.nativeEvent;
@@ -75,7 +148,8 @@ export const useGridLogic = (
 
     if (!activeColor) {
       if (cell.color) {
-        setLockedPaths((prev) => prev.filter((p) => p.color !== cell.color));
+        setLockedPaths((prev) => prev.filter((path) => path.color !== cell.color));
+        setHintPath((prev) => (prev?.color === cell.color ? null : prev));
         setActiveColor(cell.color);
         setCurrentPath([index]);
         playSwipe();
@@ -84,8 +158,7 @@ export const useGridLogic = (
     }
 
     const last = currentPath[currentPath.length - 1];
-    const secondLast =
-      currentPath.length > 1 ? currentPath[currentPath.length - 2] : null;
+    const secondLast = currentPath.length > 1 ? currentPath[currentPath.length - 2] : null;
 
     if (index === secondLast) {
       setCurrentPath((prev) => prev.slice(0, -1));
@@ -110,38 +183,19 @@ export const useGridLogic = (
     const cell = gridData[last];
 
     if (cell?.color === activeColor && currentPath.length > 1) {
-      const newLocked = [
-        ...lockedPaths,
-        { color: activeColor, cells: currentPath },
-      ];
+      const newLocked = [...lockedPaths, { color: activeColor, cells: currentPath }];
 
       setLockedPaths(newLocked);
+      setHintPath((prev) => (prev?.color === activeColor ? null : prev));
       playConnect();
 
-      if (newLocked.length === uniqueColors.length) {
-        const filled = newLocked.flatMap((p) => p.cells);
-        const uniqueFilled = [...new Set(filled)];
-
-        // ✅ kiểm tra lấp đầy tất cả playable cells (không tính connector)
-        const validFilled = uniqueFilled.filter(
-          (id) => !connectors.includes(id),
-        );
-
-        const allPlayableFilled = validFilled.length === playableCells;
-
-        // ✅ kiểm tra tất cả connector đã được đi qua ít nhất 1 lần
-        const allConnectorsUsed = connectors.every((connectorId) =>
-          uniqueFilled.includes(connectorId),
-        );
-
-        if (allPlayableFilled && allConnectorsUsed) {
-          playWin();
-          onWin();
-        }
+      if (isBoardSolved(newLocked)) {
+        playWin();
+        onWin();
       }
     }
 
-    setCurrentPath([]);
+    setCurrentPath(EMPTY_PATH);
     setActiveColor(null);
   };
 
@@ -153,7 +207,9 @@ export const useGridLogic = (
     lockedPaths,
     lockedMap,
     connectors,
+    hintPath,
     handleGesture,
     handleEnd,
+    computeHintPath,
   };
 };
